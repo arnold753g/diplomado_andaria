@@ -1,0 +1,65 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+certificates/
+*.env
+.envrc
+.npmrc
+.netrc
+credentials.json
+client_secret*.json
+service-account*.json
+id_rsa
+id_ed25519
+
+# Dependencies and build output
+frontend/node_modules/
+frontend/.nuxt/
+frontend/.output/
+frontend/dist/
+backend/bin/
+*.exe
+*.out
+node_modules/
+.nuxt/
+.output/
+*.tsbuildinfo
+/backend/api
+/backend/migrate
+/backend/seed
+
+# Runtime data
+logs/
+*.log
+uploads/
+private-uploads/
+backups/
+*.sql.gz
+*.tar.gz
+*.dump
+*.backup
+*.db
+*.sqlite
+*.sqlite3
+# Keep versioned SQL migrations; store database exports in backups/.
+
+# Tests and tooling
+coverage/
+.cache/
+.tmp/
+tmp/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.local/
+playwright-report/
+test-results/
