@@ -1,18 +1,287 @@
 # Andaria — versión para el diplomado
 
-Proyecto web de turismo, adaptado a un alcance reducido y organizado en entregas por módulos.
+Primer módulo: usuarios, cuatro roles, perfiles y acceso mediante correo/contraseña o Google. Construido sobre la base Go, Nuxt/Vue, PostgreSQL y Docker. Consulta [la guía del módulo 1](docs/modulo-01-usuarios.md) para configurar Google y revisar el resultado. Los módulos turísticos se implementarán en entregas posteriores.
 
-## Tecnologías previstas
+## Arquitectura
 
-- Backend: Go.
-- Frontend: Nuxt y Vue.
-- Base de datos: PostgreSQL.
-- Infraestructura: Docker Compose.
+```text
+Browser
+  └─ Nuxt 4 / Vue 3 / Pinia / PrimeVue
+       └─ API JSON Go 1.25 / Gorilla Mux / GORM
+            └─ PostgreSQL 16
+```
 
-## Apertura del repositorio
+- `frontend/`: interfaz SSR, layouts `/app` y `/admin`, guards cliente y tema centralizado.
+- `backend/cmd/api`: servidor HTTP.
+- `backend/cmd/migrate`: migraciones SQL versionadas e idempotentes.
+- `backend/cmd/seed`: dos usuarios configurables, solo para desarrollo/pruebas.
+- `backend/internal/httpapi`: composición explícita de rutas y middleware.
+- `backend/internal/handlers`: autenticación, perfil y administración.
+- `backend/internal/middleware`: sesión, CSRF, RBAC, rate limiting, logging y cabeceras.
+- `backend/internal/database/migrations`: fuente de verdad del esquema.
+- `nginx/`: reverse proxy de producción con servicios internos no publicados.
 
-Esta entrega contiene la documentación inicial, las reglas de exclusión de Git y una plantilla de variables de entorno. El código de la aplicación se incorporará en las siguientes entregas.
+## Requisitos
 
-Copia `.env.example` a `.env` y reemplaza los marcadores de contraseña y secreto antes de usar la configuración. No publiques `.env`, credenciales, respaldos ni archivos de usuarios.
+- Go 1.25.12 o compatible con el `go.mod`.
+- Node.js 22 y npm.
+- PostgreSQL 16 o 17.
+- Docker Compose, opcional pero recomendado.
 
-Este repositorio organiza la migración de una base existente al proyecto reducido. Las fechas del cronograma son una referencia de planificación; no acreditan la fecha de publicación en GitHub.
+## Instalación rápida con Docker
+
+1. Crea la configuración local:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. Sustituye en `.env` al menos `DB_PASSWORD` y `SESSION_SECRET`. Usa valores aleatorios; `SESSION_SECRET` debe tener 32 caracteres o más.
+
+3. Inicia los servicios:
+
+   ```powershell
+   docker compose up --build
+   ```
+
+La base se publica únicamente en `127.0.0.1`, igual que frontend y backend. En desarrollo, el backend aplica las migraciones al arrancar porque `DB_AUTO_MIGRATE=true` en Compose.
+
+## Desarrollo local
+
+Primero crea la base PostgreSQL indicada por `DB_NAME` y copia `.env.example` como `.env` en la raíz. El backend carga `../.env` cuando se ejecuta desde su carpeta.
+
+Backend:
+
+```powershell
+Set-Location backend
+go mod download
+go run ./cmd/migrate
+go run ./cmd/api
+```
+
+Frontend, en otra terminal:
+
+```powershell
+Set-Location frontend
+npm ci
+npm run dev
+```
+
+Direcciones predeterminadas:
+
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:8080/api/v1`
+- Salud: `http://localhost:8080/health`
+
+## Variables de entorno
+
+La lista completa y segura está en [`.env.example`](./.env.example). No se debe versionar `.env`.
+
+| Grupo | Variables principales | Propósito |
+| --- | --- | --- |
+| App | `APP_ENV`, `APP_NAME`, `APP_SHORT_NAME`, `LOG_LEVEL` | Entorno, nombre y nivel de logs |
+| Frontend | `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_REGISTRATION_ENABLED`, `FRONTEND_PORT` | URL pública de API y comportamiento público |
+| Backend | `SERVER_HOST`, `SERVER_PORT`, `BACKEND_PORT`, `ALLOWED_ORIGINS`, `TRUST_PROXY` | Escucha HTTP, CORS y proxies confiables |
+| Base de datos | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`, `DB_AUTO_MIGRATE` | Conexión y estrategia de migración |
+| Sesiones | `SESSION_SECRET`, `SESSION_TTL`, `SESSION_IDLE_TIMEOUT` | Firma CSRF y vencimientos absoluto/inactivo |
+| Cookies | `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAME_SITE` | Seguridad de la cookie HttpOnly |
+| Contraseñas | `PASSWORD_BCRYPT_COST`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT` | Hashing y bloqueo contra fuerza bruta |
+| Límites | `AUTH_RATE_LIMIT_PER_MINUTE`, `API_RATE_LIMIT_PER_MINUTE` | Límites por IP y proceso |
+| Seed | `SEED_DEVELOPMENT`, `DEV_*` | Usuarios configurables no productivos |
+
+La aplicación falla al arrancar si falta una variable crítica o si producción intenta usar una cookie no segura, un secreto corto/placeholder, CORS comodín o una combinación `SameSite=None` sin `Secure`.
+
+## Base de datos y migraciones
+
+El esquema se crea únicamente desde SQL versionado. No depende de cambios manuales ni de `AutoMigrate` de GORM.
+
+```powershell
+Set-Location backend
+go run ./cmd/migrate
+```
+
+El comando puede ejecutarse repetidamente: registra versiones en `schema_migrations` y aplica cada archivo una sola vez dentro de una transacción. Para agregar una migración, crea el siguiente archivo secuencial en `backend/internal/database/migrations`, por ejemplo `000002_feature.sql`.
+
+En producción, el servicio `migrate` de `docker-compose.prod.yml` debe terminar correctamente antes de que el backend inicie.
+
+## Seed de desarrollo
+
+El seed crea exactamente un `admin` y un `turista`, usando correos y contraseñas definidos por variables:
+
+```powershell
+$env:SEED_DEVELOPMENT='true'
+Set-Location backend
+go run ./cmd/seed
+```
+
+Con Docker:
+
+```powershell
+docker compose run --rm backend /app/seed
+```
+
+El comando rechaza `APP_ENV=production`, exige confirmación mediante `SEED_DEVELOPMENT=true`, valida la política de contraseña y nunca contiene contraseñas codificadas en el repositorio.
+
+## Autenticación
+
+No se utilizan JWT ni tokens en `localStorage`/`sessionStorage`.
+
+1. Login genera 256 bits aleatorios.
+2. El valor crudo vive solo en una cookie `HttpOnly`, limitada a `/api/v1`.
+3. PostgreSQL almacena únicamente SHA-256 del token.
+4. El frontend conserva en memoria un token CSRF HMAC; toda mutación autenticada debe enviarlo en `X-CSRF-Token`.
+5. La sesión tiene expiración absoluta e inactividad deslizante.
+6. Logout, cambio de contraseña, cambio de rol y desactivación revocan sesiones en servidor.
+
+La cookie usa `Secure=true` obligatoriamente en producción. `SameSite=lax` es el valor recomendado para un frontend y API del mismo sitio.
+
+## Usuarios y roles
+
+- `admin`: `/admin`, dashboard, listado/detalle de usuarios, cambio controlado de rol/estado y perfil propio.
+- `turista`: `/app`, perfil y cambio de contraseña.
+- `encargado_agencia`: `/app` y perfil; la asignación de agencia se incorpora en el módulo 2.
+- `encargado_atraccion`: `/app` y perfil; las asignaciones se incorporan en el módulo 3.
+
+El registro público, cuando está habilitado, siempre crea `turista`. El frontend orienta la navegación, pero el backend es la autoridad: todas las rutas `/admin/*` pasan por autenticación y `RequireRoles("admin")`. Un administrador tampoco puede cambiar su propio rol o estado desde la tabla administrativa.
+
+## Rutas base
+
+Frontend:
+
+```text
+/login
+/register                 (solo si el registro está habilitado)
+/app
+/app/profile
+/admin
+/admin/users
+/403
+/cualquier-ruta-invalida  (404)
+```
+
+API:
+
+```text
+GET    /health
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+GET    /api/v1/auth/session
+POST   /api/v1/auth/logout
+GET    /api/v1/me
+PATCH  /api/v1/me
+POST   /api/v1/me/password
+GET    /api/v1/admin/dashboard
+GET    /api/v1/admin/users
+GET    /api/v1/admin/users/:id
+PATCH  /api/v1/admin/users/:id/role
+PATCH  /api/v1/admin/users/:id/status
+```
+
+## Tema visual
+
+La fuente de verdad es [`frontend/assets/theme.css`](./frontend/assets/theme.css).
+
+Para cambiar colores, edita una vez:
+
+```css
+--color-primary          /* #BAFE06: CTA, enlaces e indicadores */
+--color-secondary        /* #AACA02: hover y degradados */
+--color-accent           /* #7D9505: brillo y decoración */
+--color-accent-dark      /* #333D04: superficies teñidas */
+--color-background       /* #080C0F: fondo principal */
+--color-background-deep  /* #010100: secciones profundas */
+--color-surface          /* #111517: cards */
+--color-surface-elevated /* #181C1D: inputs y elevación */
+--color-text             /* #F8F9F2: contenido principal */
+--color-text-muted       /* #B9BABA: contenido secundario */
+--color-text-disabled    /* #757B7A: contenido desactivado */
+--color-border           /* #303432: bordes y separadores */
+--color-success
+--color-warning
+--color-danger
+```
+
+La plantilla utiliza una identidad oscura única y la clase raíz `.app-dark` permite que PrimeVue consuma su variante oscura. Los componentes consumen tokens semánticos y no contienen paletas de cliente dispersas.
+
+Para cambiar fuentes, edita:
+
+```css
+--font-primary
+--font-secondary
+--font-size-base
+--font-weight-regular
+--font-weight-medium
+--font-weight-semibold
+--font-weight-bold
+--font-weight-extrabold
+```
+
+La fuente configurada es Outfit y se carga en `frontend/nuxt.config.ts` únicamente en los pesos 400, 500, 600, 700 y 800. Si agregas fuentes propias, define `@font-face` en el mismo archivo y mantén los archivos bajo `frontend/public/fonts/`.
+
+## Branding
+
+- Nombre completo: `APP_NAME` / `NUXT_PUBLIC_APP_NAME`.
+- Nombre corto: `APP_SHORT_NAME` / `NUXT_PUBLIC_APP_SHORT_NAME`.
+- Logo: reemplaza `frontend/public/branding/logo.svg` conservando la ruta.
+- Favicon: reemplaza `frontend/public/branding/favicon.svg`.
+- Colores y fuentes: `frontend/assets/theme.css`.
+
+No hay referencias al logo, imágenes ni textos comerciales del proyecto original.
+
+## Componentes reutilizables
+
+PrimeVue cubre Button, Input, Password, Select, Dialog, ConfirmDialog, Card, DataTable, Tag, Message, Toast, Spinner y Paginator. Se añadieron `AppShell`, `EmptyState` y `LoadingState` solo donde existe valor común real. Esto evita mantener duplicados de la librería UI.
+
+## Calidad y pruebas
+
+```powershell
+# Backend
+Set-Location backend
+go test ./...
+go vet ./...
+go build ./cmd/api
+go build ./cmd/migrate
+go build ./cmd/seed
+
+# Frontend
+Set-Location ../frontend
+npm test
+npm run typecheck
+npm run build
+npm audit --omit=dev
+```
+
+No hay script de lint separado; `go vet`, `gofmt` y el typecheck estricto cubren las comprobaciones estáticas disponibles en este starter.
+
+## Producción
+
+1. Usa secretos aleatorios externos al repositorio.
+2. Configura `APP_ENV=production`, orígenes HTTPS exactos y `NUXT_PUBLIC_API_BASE` público.
+3. Mantén `AUTH_COOKIE_SECURE=true`; el Compose de producción lo fuerza.
+4. Termina TLS en un balanceador/reverse proxy o amplía Nginx con certificados administrados. No publiques HTTP directo a Internet.
+5. Usa `DB_SSLMODE=require` cuando PostgreSQL esté fuera de la red privada.
+6. Mantén `REGISTRATION_ENABLED=false` si no necesitas altas públicas.
+7. Cambia el rate limiter en memoria por Redis si despliegas varias réplicas.
+8. Ejecuta backups, monitorización y rotación de secretos según tu infraestructura.
+
+Comando base:
+
+```powershell
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+PostgreSQL, backend y frontend no publican puertos en el Compose de producción; solo Nginx expone el puerto de entrada.
+
+## Crear un proyecto nuevo desde esta base
+
+1. Copia esta carpeta sin `.git`, `.env`, `node_modules`, `.nuxt`, `.output` ni binarios.
+2. Crea un `.env` nuevo desde `.env.example` y genera secretos nuevos.
+3. Cambia nombre, logo, favicon, colores y fuentes en los puntos descritos arriba.
+4. Conserva `users`, `auth_sessions`, `/me` y RBAC como infraestructura.
+5. Agrega cada nuevo dominio en paquetes backend y páginas/componentes frontend propios; no mezcles reglas comerciales dentro de autenticación.
+6. Añade migraciones secuenciales y tests de autorización para cada endpoint nuevo.
+7. Inicializa un repositorio Git nuevo y ejecuta toda la batería de calidad.
+
+## Alcance deliberadamente excluido
+
+La plantilla no inventa correo transaccional, verificación de email, recuperación de contraseña, MFA, almacenamiento de archivos ni permisos granulares. Esas capacidades requieren decisiones de proveedor y producto. Añádelas cuando el nuevo sistema tenga requisitos concretos.
