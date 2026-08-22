@@ -2,6 +2,7 @@
 package testutil
 
 import (
+	"crypto/rand"
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -10,7 +11,6 @@ import (
 	"starter-backend/internal/database"
 	"strings"
 	"testing"
-	"time"
 )
 
 func Database(t *testing.T) *gorm.DB {
@@ -30,9 +30,13 @@ func Database(t *testing.T) *gorm.DB {
 		return db
 	}
 	base := open(dsn)
-	schema := fmt.Sprintf("module1_test_%d", time.Now().UnixNano())
-	if err := base.Exec("CREATE SCHEMA " + schema).Error; err != nil {
+	var suffix [12]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
 		t.Fatal(err)
+	}
+	schema := fmt.Sprintf("module1_test_%x", suffix)
+	if err := base.Exec("CREATE SCHEMA " + schema).Error; err != nil {
+		t.Fatalf("create isolated schema: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := base.Exec("DROP SCHEMA " + schema + " CASCADE").Error; err != nil {

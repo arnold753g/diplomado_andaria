@@ -183,6 +183,10 @@ func (h *AdminHandler) canManageTarget(w http.ResponseWriter, r *http.Request, i
 }
 
 func handleAdminMutationError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, errManagerHasAgency) {
+		respond.Error(w, r, 409, "MANAGER_HAS_AGENCY", "Reasigna su agencia antes de cambiar el rol de este encargado", nil)
+		return
+	}
 	if errors.Is(err, errLastAdmin) {
 		respond.Error(w, r, 409, "LAST_ADMIN", "Debe existir al menos un administrador activo", nil)
 		return
@@ -220,6 +224,7 @@ func escapeLike(value string) string {
 }
 
 var errLastAdmin = errors.New("last active admin")
+var errManagerHasAgency = errors.New("manager has agency")
 
 func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
 	if err := tx.Exec("SELECT pg_advisory_xact_lock(7412001)").Error; err != nil {
@@ -234,6 +239,15 @@ func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
 	}
 	if status == "" {
 		status = user.Status
+	}
+	if user.Role == models.RoleAgency && role != models.RoleAgency {
+		var assigned int64
+		if err := tx.Model(&models.Agency{}).Where("manager_id = ?", id).Count(&assigned).Error; err != nil {
+			return err
+		}
+		if assigned > 0 {
+			return errManagerHasAgency
+		}
 	}
 	if user.Role == models.RoleAdmin && user.Status == models.StatusActive && (role != models.RoleAdmin || status != models.StatusActive) {
 		var count int64

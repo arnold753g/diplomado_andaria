@@ -23,6 +23,7 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	}
 	profileHandler := handlers.NewProfileHandler(db)
 	adminHandler := handlers.NewAdminHandler(db)
+	agencyHandler := handlers.NewAgencyHandler(db)
 
 	router.HandleFunc("/health", handlers.Health).Methods(http.MethodGet)
 
@@ -47,10 +48,21 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	protected.HandleFunc("/me", profileHandler.Update).Methods(http.MethodPatch)
 	protected.HandleFunc("/me/password", authHandler.ChangePassword).Methods(http.MethodPost)
 	protected.HandleFunc("/me/google/start", authHandler.GoogleLink).Methods(http.MethodPost)
+	agency := protected.PathPrefix("/agency").Subrouter()
+	agency.Use(middleware.RequireRoles(models.RoleAgency))
+	agency.HandleFunc("", agencyHandler.Mine).Methods(http.MethodGet)
+	agency.HandleFunc("", agencyHandler.UpdateMine).Methods(http.MethodPut)
+	agency.HandleFunc("/options", agencyHandler.Options).Methods(http.MethodGet)
 
 	admin := protected.PathPrefix("/admin").Subrouter()
 	admin.Use(middleware.RequireRoles(models.RoleAdmin))
 	admin.HandleFunc("/dashboard", adminHandler.Dashboard).Methods(http.MethodGet)
+	admin.HandleFunc("/agencies/options", agencyHandler.Options).Methods(http.MethodGet)
+	admin.HandleFunc("/agencies/managers", agencyHandler.Managers).Methods(http.MethodGet)
+	admin.HandleFunc("/agencies", agencyHandler.List).Methods(http.MethodGet)
+	admin.HandleFunc("/agencies", agencyHandler.Create).Methods(http.MethodPost)
+	admin.HandleFunc("/agencies/{id:[0-9]+}", agencyHandler.Get).Methods(http.MethodGet)
+	admin.HandleFunc("/agencies/{id:[0-9]+}", agencyHandler.Update).Methods(http.MethodPut)
 	admin.HandleFunc("/users", adminHandler.ListUsers).Methods(http.MethodGet)
 	admin.HandleFunc("/users", authHandler.CreateUser).Methods(http.MethodPost)
 	admin.HandleFunc("/users/{id:[0-9]+}", adminHandler.UpdateUser).Methods(http.MethodPatch)
