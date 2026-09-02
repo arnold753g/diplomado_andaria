@@ -59,10 +59,12 @@ const items = computed<NavigationItem[]>(() => props.mode === 'admin'
   ? [
       { label: 'Dashboard', to: '/admin', icon: 'pi pi-home' },
       { label: 'Usuarios', to: '/admin/users', icon: 'pi pi-users' },
+      { label: 'Agencias', to: '/admin/agencies', icon: 'pi pi-building' },
       { label: 'Mi perfil', to: '/app/profile', icon: 'pi pi-user' }
     ]
   : [
       { label: 'Inicio', to: '/app', icon: 'pi pi-home' },
+      ...(auth.user?.role === 'encargado_agencia' ? [{ label: 'Mi agencia', to: '/agency', icon: 'pi pi-building' }] : []),
       { label: 'Mi perfil', to: '/app/profile', icon: 'pi pi-user' }
     ])
 
