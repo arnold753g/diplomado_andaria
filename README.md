@@ -1,6 +1,6 @@
 # Andaria — versión para el diplomado
 
-Primer módulo: usuarios, cuatro roles, perfiles y acceso mediante correo/contraseña o Google. Construido sobre la base Go, Nuxt/Vue, PostgreSQL y Docker. Consulta [la guía del módulo 1](docs/modulo-01-usuarios.md) para configurar Google y revisar el resultado. Los módulos turísticos se implementarán en entregas posteriores.
+Módulos disponibles: usuarios, cuatro roles, perfiles y acceso mediante correo/contraseña o Google; agencias, encargados y configuración de tarifas y medios de pago. Construido sobre la base Go, Nuxt/Vue, PostgreSQL y Docker. Consulta [la guía del módulo 1](docs/modulo-01-usuarios.md) y [la guía del módulo 2](docs/modulo-02-agencias.md). Atracciones, paquetes, compras y reembolsos siguen pendientes.
 
 ## Arquitectura
 
