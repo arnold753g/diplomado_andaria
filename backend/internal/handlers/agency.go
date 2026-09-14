@@ -28,26 +28,30 @@ type AgencyHandler struct{ db *gorm.DB }
 
 func NewAgencyHandler(db *gorm.DB) *AgencyHandler { return &AgencyHandler{db: db} }
 
+type agencyAdminRequest struct {
+	Name        string  `json:"name" validate:"required,min=2,max=160"`
+	Description string  `json:"description" validate:"max=3000"`
+	Department  string  `json:"department" validate:"required"`
+	City        string  `json:"city" validate:"required,min=2,max=100"`
+	Address     string  `json:"address" validate:"required,min=3,max=250"`
+	Phone       string  `json:"phone" validate:"required,min=7,max=30"`
+	Email       string  `json:"email" validate:"required,email,max=320"`
+	ManagerID   *uint64 `json:"manager_id,omitempty"`
+	Status      *string `json:"status,omitempty"`
+	Published   bool    `json:"published"`
+	Version     int     `json:"version"`
+}
+
 type agencyRequest struct {
-	Name                string  `json:"name" validate:"required,min=2,max=160"`
-	Description         string  `json:"description" validate:"max=3000"`
-	Department          string  `json:"department" validate:"required"`
-	City                string  `json:"city" validate:"required,min=2,max=100"`
-	Address             string  `json:"address" validate:"required,min=3,max=250"`
-	Phone               string  `json:"phone" validate:"required,min=7,max=30"`
-	Email               string  `json:"email" validate:"required,email,max=320"`
-	ManagerID           *uint64 `json:"manager_id,omitempty"`
-	Status              *string `json:"status,omitempty"`
-	Published           bool    `json:"published"`
-	MinimumPayingAge    *int    `json:"minimum_paying_age"`
-	AcceptsQR           bool    `json:"accepts_qr"`
-	AcceptsTransfer     bool    `json:"accepts_transfer"`
-	BankName            string  `json:"bank_name" validate:"max=100"`
-	AccountHolder       string  `json:"account_holder" validate:"max=160"`
-	AccountNumber       string  `json:"account_number" validate:"max=50"`
-	PaymentInstructions string  `json:"payment_instructions" validate:"max=1000"`
-	QRImage             string  `json:"qr_image"`
-	Version             int     `json:"version"`
+	agencyAdminRequest
+	MinimumPayingAge    *int   `json:"minimum_paying_age"`
+	AcceptsQR           bool   `json:"accepts_qr"`
+	AcceptsTransfer     bool   `json:"accepts_transfer"`
+	BankName            string `json:"bank_name" validate:"max=100"`
+	AccountHolder       string `json:"account_holder" validate:"max=160"`
+	AccountNumber       string `json:"account_number" validate:"max=50"`
+	PaymentInstructions string `json:"payment_instructions" validate:"max=1000"`
+	QRImage             string `json:"qr_image"`
 }
 
 type agencyResponse struct {
@@ -157,7 +161,11 @@ func (h *AgencyHandler) UpdateMine(w http.ResponseWriter, r *http.Request) { h.s
 func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, mine bool) {
 	p, _ := middleware.CurrentPrincipal(r)
 	var input agencyRequest
-	if !decodeJSON(w, r, &input) {
+	var destination any = &input
+	if !mine {
+		destination = &input.agencyAdminRequest
+	}
+	if !decodeJSON(w, r, destination) {
 		return
 	}
 	if mine && (input.ManagerID != nil || input.Status != nil) {
@@ -168,7 +176,7 @@ func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, min
 		*s = strings.TrimSpace(*s)
 	}
 	input.Email = normalizeEmail(input.Email)
-	if input.MinimumPayingAge == nil && create {
+	if !mine {
 		age := 6
 		input.MinimumPayingAge = &age
 	}
@@ -233,6 +241,7 @@ func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, min
 		if create {
 			agency.Status = models.StatusActive
 			agency.Version = 1
+			agency.MinimumPayingAge = 6
 		} else {
 			q := tx.Clauses(clause.Locking{Strength: "UPDATE"})
 			if mine {
@@ -288,14 +297,16 @@ func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, min
 		if agency.Status == models.StatusInactive {
 			agency.Published = false
 		}
-		agency.MinimumPayingAge = *input.MinimumPayingAge
-		agency.AcceptsQR = input.AcceptsQR
-		agency.AcceptsTransfer = input.AcceptsTransfer
-		agency.BankName = input.BankName
-		agency.AccountHolder = input.AccountHolder
-		agency.AccountNumber = input.AccountNumber
-		agency.PaymentInstructions = input.PaymentInstructions
-		agency.QRImage = qr
+		if mine {
+			agency.MinimumPayingAge = *input.MinimumPayingAge
+			agency.AcceptsQR = input.AcceptsQR
+			agency.AcceptsTransfer = input.AcceptsTransfer
+			agency.BankName = input.BankName
+			agency.AccountHolder = input.AccountHolder
+			agency.AccountNumber = input.AccountNumber
+			agency.PaymentInstructions = input.PaymentInstructions
+			agency.QRImage = qr
+		}
 		if create {
 			return tx.Create(&agency).Error
 		}

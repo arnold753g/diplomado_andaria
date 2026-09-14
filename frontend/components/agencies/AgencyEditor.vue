@@ -40,7 +40,7 @@
                 <small class="form-help">Una agencia desactivada permanece oculta.</small>
               </div></template>
             </Card>
-            <Card>
+            <Card v-if="!admin">
               <template #title><i class="pi pi-users" aria-hidden="true" /> Política de menores</template>
               <template #content><div class="stack">
                 <div class="form-field"><label for="agency-age">Edad mínima de pago *</label><InputNumber input-id="agency-age" v-model="form.minimum_paying_age" :min="0" :max="18" :use-grouping="false" :disabled="locked" show-buttons /></div>
@@ -50,7 +50,7 @@
             </Card>
           </div>
         </div>
-        <Card class="agency-payments">
+        <Card v-if="!admin" class="agency-payments">
           <template #title><i class="pi pi-wallet" aria-hidden="true" /> Medios de pago</template>
           <template #subtitle>Configura cómo recibirás el pago completo de los paquetes, en bolivianos.</template>
           <template #content>
@@ -185,12 +185,14 @@ const submit = async () => {
   if (locked.value || readingQR.value) return
   error.value = ''; fieldErrors.value = {}
   if (props.admin && !form.manager_id) { error.value = 'Selecciona un encargado de agencia disponible.'; return }
-  if (form.minimum_paying_age === null || !Number.isInteger(form.minimum_paying_age) || form.minimum_paying_age < 0 || form.minimum_paying_age > 18) { error.value = 'La edad mínima debe estar entre 0 y 18 años.'; return }
-  if (form.accepts_qr && !form.qr_image) { error.value = 'Sube la imagen QR antes de habilitar ese medio de pago.'; return }
+  if (!props.admin && (form.minimum_paying_age === null || !Number.isInteger(form.minimum_paying_age) || form.minimum_paying_age < 0 || form.minimum_paying_age > 18)) { error.value = 'La edad mínima debe estar entre 0 y 18 años.'; return }
+  if (!props.admin && form.accepts_qr && !form.qr_image) { error.value = 'Sube la imagen QR antes de habilitar ese medio de pago.'; return }
   saving.value = true
   try {
     const { manager_id, status, ...editable } = form
-    const body = props.admin ? { ...editable, manager_id, status } : editable
+    const body = props.admin
+      ? { name: form.name, description: form.description, department: form.department, city: form.city, address: form.address, phone: form.phone, email: form.email, published: form.published, version: form.version, manager_id, status }
+      : editable
     const response = await auth.request<Agency>(endpoint.value, { method: props.create ? 'POST' : 'PUT', body })
     if (!response.data) throw new Error('Missing agency')
     apply(response.data)

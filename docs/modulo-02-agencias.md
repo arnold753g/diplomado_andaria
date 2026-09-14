@@ -22,7 +22,7 @@ La visibilidad queda configurada para el catálogo posterior. Este módulo no pr
 3. Abrir **Agencias → Nueva agencia** y asignar esa cuenta.
 4. Completar contacto, ubicación, edad mínima y los medios de pago que correspondan.
 5. Guardar y comprobar la agencia en el listado.
-6. Ingresar con la cuenta del encargado y abrir **Mi agencia** para editarla.
+6. Ingresar con la cuenta del encargado y abrir **Mi agencia** para configurar la edad mínima y los medios de pago.
 
 No se cargaron agencias de ejemplo; los datos reales los incorpora el usuario.
 

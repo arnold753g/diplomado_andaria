@@ -164,10 +164,27 @@ func TestAgencyOwnershipValidationAndAssignments(t *testing.T) {
 	request("PATCH", fmt.Sprintf("/api/v1/admin/users/%d/role", accounts[1].ID), map[string]string{"role": models.RoleUser}, 0, 409)
 	request("PATCH", fmt.Sprintf("/api/v1/admin/users/%d", accounts[1].ID), map[string]string{"first_name": "Prueba", "last_name": "Agencia", "role": models.RoleUser, "status": "active"}, 0, 409)
 	// Reassignment immediately changes ownership without relying on browser navigation.
-	adminEdit := maps.Clone(own)
+	adminEdit := maps.Clone(payload)
+	adminEdit["name"] = "Agencia editada"
 	adminEdit["version"] = 3
 	adminEdit["manager_id"] = accounts[2].ID
+	for _, field := range []string{"minimum_paying_age", "accepts_qr", "accepts_transfer", "bank_name", "account_holder", "account_number", "payment_instructions", "qr_image"} {
+		forbidden := maps.Clone(adminEdit)
+		forbidden[field] = nil
+		request("PUT", path, forbidden, 0, 400)
+		forbidden = maps.Clone(payload)
+		forbidden[field] = nil
+		request("POST", "/api/v1/admin/agencies", forbidden, 0, 400)
+	}
 	request("PUT", path, adminEdit, 0, 200)
+	var preserved models.Agency
+	if err := db.First(&preserved, agency.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if preserved.MinimumPayingAge != saved.MinimumPayingAge || preserved.AcceptsQR != saved.AcceptsQR || preserved.AcceptsTransfer != saved.AcceptsTransfer || preserved.BankName != saved.BankName || preserved.AccountHolder != saved.AccountHolder || preserved.AccountNumber != saved.AccountNumber || preserved.PaymentInstructions != saved.PaymentInstructions || !bytes.Equal(preserved.QRImage, saved.QRImage) {
+		t.Fatal("admin edit altered manager-only configuration")
+	}
+
 	request("GET", "/api/v1/agency", nil, 1, 404)
 	request("PUT", "/api/v1/agency", own, 1, 404)
 	request("GET", "/api/v1/agency", nil, 2, 200)
