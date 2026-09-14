@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 *.pem
 *.key
 *.p12
@@ -63,3 +64,6 @@ Thumbs.db
 .local/
 playwright-report/
 test-results/
+
+# Documentacion local del diplomado
+/documentacion para el diplomando/
