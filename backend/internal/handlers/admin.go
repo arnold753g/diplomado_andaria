@@ -21,20 +21,31 @@ type AdminHandler struct{ db *gorm.DB }
 func NewAdminHandler(db *gorm.DB) *AdminHandler { return &AdminHandler{db: db} }
 
 func (h *AdminHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
-	var total, active, admins int64
-	if err := h.db.Model(&models.User{}).Count(&total).Error; err != nil {
-		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Dashboard could not be loaded", nil)
-		return
+	stats := map[string]int64{}
+	queries := []struct {
+		name  string
+		query *gorm.DB
+	}{
+		{"users", h.db.Model(&models.User{})},
+		{"active_users", h.db.Model(&models.User{}).Where("status = ?", models.StatusActive)},
+		{"active_admins", h.db.Model(&models.User{}).Where("role = ? AND status = ?", models.RoleAdmin, models.StatusActive)},
+		{"agencies", h.db.Model(&models.Agency{})},
+		{"published_agencies", h.db.Model(&models.Agency{}).Where("status = ? AND published = TRUE", models.StatusActive)},
+		{"attractions", h.db.Model(&models.Attraction{})},
+		{"published_attractions", h.db.Model(&models.Attraction{}).Where("status = ? AND published = TRUE", models.StatusActive)},
+		{"packages", h.db.Model(&models.TourPackage{})},
+		{"published_packages", h.db.Model(&models.TourPackage{}).Where("published = TRUE")},
+		{"purchases", h.db.Model(&models.TourPackagePurchase{})},
 	}
-	if err := h.db.Model(&models.User{}).Where("status = ?", models.StatusActive).Count(&active).Error; err != nil {
-		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Dashboard could not be loaded", nil)
-		return
+	for _, item := range queries {
+		var count int64
+		if err := item.query.Count(&count).Error; err != nil {
+			respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Dashboard could not be loaded", nil)
+			return
+		}
+		stats[item.name] = count
 	}
-	if err := h.db.Model(&models.User{}).Where("role = ? AND status = ?", models.RoleAdmin, models.StatusActive).Count(&admins).Error; err != nil {
-		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Dashboard could not be loaded", nil)
-		return
-	}
-	respond.JSON(w, http.StatusOK, map[string]int64{"users": total, "active_users": active, "active_admins": admins}, "Dashboard loaded")
+	respond.JSON(w, http.StatusOK, stats, "Dashboard loaded")
 }
 
 func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
@@ -183,6 +194,10 @@ func (h *AdminHandler) canManageTarget(w http.ResponseWriter, r *http.Request, i
 }
 
 func handleAdminMutationError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, errManagerHasAttractions) {
+		respond.Error(w, r, 409, "MANAGER_HAS_ATTRACTIONS", "Reasigna sus atracciones antes de cambiar el rol de este encargado", nil)
+		return
+	}
 	if errors.Is(err, errManagerHasAgency) {
 		respond.Error(w, r, 409, "MANAGER_HAS_AGENCY", "Reasigna su agencia antes de cambiar el rol de este encargado", nil)
 		return
@@ -224,6 +239,7 @@ func escapeLike(value string) string {
 }
 
 var errLastAdmin = errors.New("last active admin")
+var errManagerHasAttractions = errors.New("manager has attractions")
 var errManagerHasAgency = errors.New("manager has agency")
 
 func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
@@ -239,6 +255,15 @@ func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
 	}
 	if status == "" {
 		status = user.Status
+	}
+	if user.Role == models.RoleAttraction && role != models.RoleAttraction {
+		var assigned int64
+		if err := tx.Model(&models.Attraction{}).Where("manager_id = ?", id).Count(&assigned).Error; err != nil {
+			return err
+		}
+		if assigned > 0 {
+			return errManagerHasAttractions
+		}
 	}
 	if user.Role == models.RoleAgency && role != models.RoleAgency {
 		var assigned int64

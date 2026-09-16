@@ -13,6 +13,7 @@ import (
 	"starter-backend/internal/config"
 	"starter-backend/internal/database"
 	"starter-backend/internal/httpapi"
+	"starter-backend/internal/services"
 )
 
 func main() {
@@ -48,6 +49,7 @@ func main() {
 
 	shutdownSignal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	go services.RunMinimumReviewWorker(shutdownSignal, db, logger, time.Minute)
 	go func() {
 		<-shutdownSignal.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
