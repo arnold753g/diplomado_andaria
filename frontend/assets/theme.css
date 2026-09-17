@@ -347,14 +347,14 @@ h1, h2, h3 {
 }
 .sidebar-nav a i { width: 1.25rem; color: var(--color-text-disabled); font-size: 1.05rem; text-align: center; transition: color var(--motion-fast); }
 .sidebar-nav a:hover { border-color: var(--color-border-soft); background: rgba(248, 249, 242, 0.035); color: var(--color-text); transform: translateX(2px); }
-.sidebar-nav a.router-link-active {
+.sidebar-nav a.nav-active {
   border-color: rgba(186, 254, 6, 0.2);
   background: linear-gradient(90deg, rgba(186, 254, 6, 0.14), rgba(186, 254, 6, 0.035));
   color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
   box-shadow: inset 3px 0 var(--color-primary);
 }
-.sidebar-nav a.router-link-active i { color: var(--color-primary); }
+.sidebar-nav a.nav-active i { color: var(--color-primary); }
 .sidebar-footer { padding: var(--space-4); border-top: 1px solid var(--color-border-soft); }
 .sidebar-overlay { position: fixed; inset: 0; z-index: 30; border: 0; background: var(--color-overlay); backdrop-filter: blur(4px); }
 

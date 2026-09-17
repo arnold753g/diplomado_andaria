@@ -6,16 +6,22 @@ const rootEnvPath = resolve(process.cwd(), '../.env')
 if (existsSync(rootEnvPath)) loadEnvFile(rootEnvPath)
 
 const isProduction = process.env.NODE_ENV === 'production'
+const publicApiBase = process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: !isProduction },
   modules: ['@pinia/nuxt'],
-  css: ['primeicons/primeicons.css', '~/assets/theme.css'],
+  css: ['leaflet/dist/leaflet.css', 'maplibre-gl/dist/maplibre-gl.css', 'primeicons/primeicons.css', '~/assets/theme.css'],
   build: { transpile: ['primevue'] },
   runtimeConfig: {
+    apiInternalBase: process.env.NUXT_API_INTERNAL_BASE || publicApiBase,
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080/api/v1',
+      apiBase: publicApiBase,
+      mapTileUrl: process.env.NUXT_PUBLIC_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      mapStyleUrl: process.env.NUXT_PUBLIC_MAP_STYLE_URL || '/maps/openfreemap-liberty.json',
+      mapAttribution: process.env.NUXT_PUBLIC_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      mapVectorAttribution: process.env.NUXT_PUBLIC_MAP_VECTOR_ATTRIBUTION || '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       appName: process.env.NUXT_PUBLIC_APP_NAME || process.env.APP_NAME || 'Andaria',
       appShortName: process.env.NUXT_PUBLIC_APP_SHORT_NAME || process.env.APP_SHORT_NAME || 'Andaria',
       registrationEnabled: process.env.NUXT_PUBLIC_REGISTRATION_ENABLED !== 'false'
