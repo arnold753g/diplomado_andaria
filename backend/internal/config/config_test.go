@@ -68,3 +68,29 @@ func TestProductionRequiresSecureCookie(t *testing.T) {
 		t.Fatal("expected insecure production cookie to fail")
 	}
 }
+
+func TestProductionRequiresHTTPSOrigins(t *testing.T) {
+	validEnvironment(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("AUTH_COOKIE_SECURE", "true")
+	t.Setenv("ALLOWED_ORIGINS", "http://andaria.example")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected an insecure production origin to fail")
+	}
+	t.Setenv("ALLOWED_ORIGINS", "https://andaria.example")
+	t.Setenv("FRONTEND_URL", "https://andaria.example")
+	if _, err := Load(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProductionRejectsPlaceholderDatabasePassword(t *testing.T) {
+	validEnvironment(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("AUTH_COOKIE_SECURE", "true")
+	t.Setenv("ALLOWED_ORIGINS", "https://andaria.example")
+	t.Setenv("DB_PASSWORD", "replace-with-a-password")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected a placeholder production database password to fail")
+	}
+}

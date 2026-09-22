@@ -52,6 +52,9 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	if appEnv == "production" && (len(dbPassword) < 16 || looksLikePlaceholder(dbPassword)) {
+		return Config{}, fmt.Errorf("DB_PASSWORD must contain at least 16 non-placeholder characters in production")
+	}
 	sessionSecret, err := required("SESSION_SECRET")
 	if err != nil {
 		return Config{}, err
@@ -60,7 +63,7 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("SESSION_SECRET must contain at least 32 non-placeholder characters")
 	}
 
-	origins, err := parseOrigins(value("ALLOWED_ORIGINS", ""))
+	origins, err := parseOrigins(value("ALLOWED_ORIGINS", ""), appEnv)
 	if err != nil {
 		return Config{}, err
 	}
@@ -214,7 +217,7 @@ func duration(key string, fallback time.Duration) (time.Duration, error) {
 	return v, nil
 }
 
-func parseOrigins(raw string) ([]string, error) {
+func parseOrigins(raw, appEnv string) ([]string, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, fmt.Errorf("ALLOWED_ORIGINS is required")
 	}
@@ -228,6 +231,9 @@ func parseOrigins(raw string) ([]string, error) {
 		u, err := url.Parse(origin)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Path != "" {
 			return nil, fmt.Errorf("ALLOWED_ORIGINS contains an invalid origin")
+		}
+		if appEnv == "production" && u.Scheme != "https" {
+			return nil, fmt.Errorf("ALLOWED_ORIGINS requires HTTPS in production")
 		}
 		out = append(out, origin)
 	}
