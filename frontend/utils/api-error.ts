@@ -17,7 +17,13 @@ export const apiError = (error: unknown, fallback = 'No se pudo completar la ope
     SELF_ADMIN_CHANGE: 'Modifica tus datos desde Mi perfil; no puedes cambiar tu propio rol o estado.',
     INTERNAL_ERROR: 'No se pudo completar la operación. Inténtalo nuevamente.',
     INVALID_JSON: 'Los datos enviados no son válidos.',
-    CSRF_INVALID: 'Tu sesión necesita actualizarse. Recarga la página y vuelve a intentar.'
+    CSRF_INVALID: 'Tu sesión necesita actualizarse. Recarga la página y vuelve a intentar.',
+    DEPARTURE_NOT_BOOKABLE: 'La salida ya no está disponible para compra.',
+    CAPACITY_UNAVAILABLE: 'Ya no hay cupos suficientes para todo el grupo.',
+    PAYMENT_METHOD_UNAVAILABLE: 'La agencia ya no admite ese medio de pago.',
+    PURCHASE_CONFLICT: 'La compra cambió. Recarga la página antes de continuar.',
+    PURCHASE_STATE_CONFLICT: 'La compra ya fue revisada o cambió de estado.',
+    PURCHASE_PROOF_INVALID: 'Sube un comprobante PNG o JPG de hasta 5 MB.'
   }
   return { ...result, message: messages[result.code] || result.message }
 }

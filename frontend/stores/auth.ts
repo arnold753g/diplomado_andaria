@@ -66,11 +66,12 @@ export const useAuthStore = defineStore('auth', {
         this.clear()
         return false
       }
-      if (initializePromise) return initializePromise
-      initializePromise = (async () => {
+      const fetchSession = async () => {
         try {
           const config = useRuntimeConfig()
-          const response = await $fetch<ApiEnvelope<SessionData>>(`${config.public.apiBase}/auth/session`, { credentials: 'include' })
+          const apiBase = import.meta.server ? config.apiInternalBase : config.public.apiBase
+          const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+          const response = await $fetch<ApiEnvelope<SessionData>>(`${apiBase}/auth/session`, { credentials: 'include', headers })
           if (!response.data) return false
           this.setSession(response.data)
           return true
@@ -80,7 +81,12 @@ export const useAuthStore = defineStore('auth', {
         } finally {
           this.initialized = true
         }
-      })().finally(() => { initializePromise = null })
+      }
+      // Pinia stores are request-scoped during SSR; a module-level promise would leak
+      // one visitor's authentication result into another concurrent request.
+      if (import.meta.server) return fetchSession()
+      if (initializePromise) return initializePromise
+      initializePromise = fetchSession().finally(() => { initializePromise = null })
       return initializePromise
     },
 

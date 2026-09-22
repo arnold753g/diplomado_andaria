@@ -281,11 +281,11 @@ func (h *AuthHandler) setCookie(w http.ResponseWriter, token string, expiresAt t
 	if maxAge < 1 {
 		maxAge = 1
 	}
-	http.SetCookie(w, &http.Cookie{Name: security.CookieName, Value: token, Path: "/api/v1",
+	http.SetCookie(w, &http.Cookie{Name: security.CookieName, Value: token, Path: "/",
 		Expires: expiresAt, MaxAge: maxAge, HttpOnly: true, Secure: h.cfg.CookieSecure, SameSite: h.cfg.CookieSameSite})
 }
 
 func (h *AuthHandler) clearCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: security.CookieName, Value: "", Path: "/api/v1",
+	http.SetCookie(w, &http.Cookie{Name: security.CookieName, Value: "", Path: "/",
 		Expires: time.Unix(1, 0), MaxAge: -1, HttpOnly: true, Secure: h.cfg.CookieSecure, SameSite: h.cfg.CookieSameSite})
 }

@@ -63,7 +63,11 @@ func TestModuleOnePermissionsAndSessions(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 			t.Fatal(err)
 		}
-		return w.Result().Cookies()[0], result.Data.CSRF
+		cookie := w.Result().Cookies()[0]
+		if cookie.Path != "/" || !cookie.HttpOnly {
+			t.Fatalf("session cookie is not available to same-origin SSR: path=%q http_only=%v", cookie.Path, cookie.HttpOnly)
+		}
+		return cookie, result.Data.CSRF
 	}
 	payload := map[string]string{"email": "tourist@example.test", "password": password, "first_name": "Turista", "last_name": "Prueba"}
 	payload["role"] = "admin"
