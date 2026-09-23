@@ -81,6 +81,7 @@ services:
       NODE_ENV: production
       NUXT_HOST: 0.0.0.0
       NUXT_PORT: 3000
+      NUXT_API_INTERNAL_BASE: http://backend:8080/api/v1
       NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-http://localhost:8080/api/v1}
       NUXT_PUBLIC_APP_NAME: ${APP_NAME:-Andaria}
       NUXT_PUBLIC_APP_SHORT_NAME: ${APP_SHORT_NAME:-Andaria}

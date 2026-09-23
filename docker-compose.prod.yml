@@ -57,6 +57,7 @@ services:
       TRUST_PROXY: "true"
     networks:
       - starter_internal
+      - starter_egress
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 15s
@@ -98,6 +99,7 @@ services:
       NODE_ENV: production
       NUXT_HOST: 0.0.0.0
       NUXT_PORT: 3000
+      NUXT_API_INTERNAL_BASE: http://backend:8080/api/v1
       NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:?NUXT_PUBLIC_API_BASE is required}
       NUXT_PUBLIC_APP_NAME: ${APP_NAME:-Andaria}
       NUXT_PUBLIC_APP_SHORT_NAME: ${APP_SHORT_NAME:-Andaria}
@@ -117,11 +119,12 @@ services:
       - backend
       - frontend
     ports:
-      - "80:80"
+      - "${HTTP_BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8088}:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - starter_internal
+      - starter_edge
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 15s
@@ -131,6 +134,12 @@ services:
 networks:
   starter_internal:
     internal: true
+  starter_egress:
+    # Only the backend joins this network so Google OAuth can reach its HTTPS endpoints.
+    internal: false
+  starter_edge:
+    # Nginx alone joins the edge network; application services remain unexposed.
+    internal: false
 
 volumes:
   postgres_data:
