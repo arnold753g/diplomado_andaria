@@ -1,6 +1,6 @@
 # Andaria — versión para el diplomado
 
-Módulos disponibles: usuarios, cuatro roles, perfiles y acceso mediante correo/contraseña o Google; agencias, encargados y configuración de tarifas y medios de pago. Construido sobre la base Go, Nuxt/Vue, PostgreSQL y Docker. Consulta [la guía del módulo 1](docs/modulo-01-usuarios.md) y [la guía del módulo 2](docs/modulo-02-agencias.md). Atracciones, paquetes, compras y reembolsos siguen pendientes.
+Módulos disponibles: usuarios, cuatro roles, perfiles y acceso mediante correo/contraseña o Google; agencias, encargados y configuración de tarifas y medios de pago; atracciones, clasificación, horarios, catálogo, mapas y favoritos. Paquetes incorpora borradores, tarifas, fotografías, itinerarios, publicación y programación de salidas únicas, diarias o por días específicos con ventanas de compra. El turista puede comprar cupos, adjuntar y corregir su comprobante, cancelar dentro de la política y elegir QR o cuenta bancaria para la devolución. La agencia revisa pagos, confirma cancelaciones por cupo mínimo y registra cada reembolso con comprobante dentro de 72 horas. La portada pública reúne el catálogo y cada rol recibe un panel con sus alertas y cifras operativas. Consulta las guías de [usuarios](docs/modulo-01-usuarios.md), [agencias](docs/modulo-02-agencias.md), [atracciones](docs/modulo-03-atracciones.md), [paquetes](docs/modulo-04-paquetes.md), [compras](docs/modulo-05-compras.md), [cancelaciones y reembolsos](docs/modulo-06-cancelaciones-reembolsos.md) y [home y paneles](docs/modulo-07-home-paneles.md).
 
 ## Arquitectura
 
@@ -16,7 +16,7 @@ Browser
 - `backend/cmd/migrate`: migraciones SQL versionadas e idempotentes.
 - `backend/cmd/seed`: dos usuarios configurables, solo para desarrollo/pruebas.
 - `backend/internal/httpapi`: composición explícita de rutas y middleware.
-- `backend/internal/handlers`: autenticación, perfil y administración.
+- `backend/internal/handlers`: autenticación, perfiles, usuarios, agencias, atracciones y favoritos.
 - `backend/internal/middleware`: sesión, CSRF, RBAC, rate limiting, logging y cabeceras.
 - `backend/internal/database/migrations`: fuente de verdad del esquema.
 - `nginx/`: reverse proxy de producción con servicios internos no publicados.
@@ -122,12 +122,21 @@ docker compose run --rm backend /app/seed
 
 El comando rechaza `APP_ENV=production`, exige confirmación mediante `SEED_DEVELOPMENT=true`, valida la política de contraseña y nunca contiene contraseñas codificadas en el repositorio.
 
+Para cargar tres paquetes demostrativos con programación única, diaria y por días específicos, ejecuta después de crear la agencia de desarrollo:
+
+```powershell
+Set-Location backend
+go run ./cmd/seed-demo-packages
+```
+
+Este segundo comando también está limitado a desarrollo. Es idempotente mientras sus paquetes no tengan compras y no modifica datos comerciales ajenos.
+
 ## Autenticación
 
 No se utilizan JWT ni tokens en `localStorage`/`sessionStorage`.
 
 1. Login genera 256 bits aleatorios.
-2. El valor crudo vive solo en una cookie `HttpOnly`, limitada a `/api/v1`.
+2. El valor crudo vive solo en una cookie `HttpOnly` de mismo origen. Su alcance `/` permite que Nuxt valide la sesión durante SSR sin exponerla a JavaScript.
 3. PostgreSQL almacena únicamente SHA-256 del token.
 4. El frontend conserva en memoria un token CSRF HMAC; toda mutación autenticada debe enviarlo en `X-CSRF-Token`.
 5. La sesión tiene expiración absoluta e inactividad deslizante.
@@ -139,8 +148,8 @@ La cookie usa `Secure=true` obligatoriamente en producción. `SameSite=lax` es e
 
 - `admin`: `/admin`, dashboard, listado/detalle de usuarios, cambio controlado de rol/estado y perfil propio.
 - `turista`: `/app`, perfil y cambio de contraseña.
-- `encargado_agencia`: `/app` y perfil; la asignación de agencia se incorpora en el módulo 2.
-- `encargado_atraccion`: `/app` y perfil; las asignaciones se incorporan en el módulo 3.
+- `encargado_agencia`: `/app`, perfil y configuración de su agencia asignada.
+- `encargado_atraccion`: `/app`, perfil y edición de una o varias atracciones asignadas.
 
 El registro público, cuando está habilitado, siempre crea `turista`. El frontend orienta la navegación, pero el backend es la autoridad: todas las rutas `/admin/*` pasan por autenticación y `RequireRoles("admin")`. Un administrador tampoco puede cambiar su propio rol o estado desde la tabla administrativa.
 
@@ -149,12 +158,27 @@ El registro público, cuando está habilitado, siempre crea `turista`. El fronte
 Frontend:
 
 ```text
+/                          (portada pública)
 /login
 /register                 (solo si el registro está habilitado)
 /app
 /app/profile
+/app/favorites
+/app/purchases
 /admin
 /admin/users
+/admin/agencies
+/admin/attractions
+/agency/packages
+/agency/packages/new
+/agency/packages/:id
+/agency/purchases
+/managed-attractions
+/attractions
+/attractions/:id
+/packages
+/packages/:id
+/packages/:id/purchase
 /403
 /cualquier-ruta-invalida  (404)
 ```
@@ -168,6 +192,7 @@ POST   /api/v1/auth/login
 GET    /api/v1/auth/session
 POST   /api/v1/auth/logout
 GET    /api/v1/me
+GET    /api/v1/me/dashboard
 PATCH  /api/v1/me
 POST   /api/v1/me/password
 GET    /api/v1/admin/dashboard
@@ -175,6 +200,44 @@ GET    /api/v1/admin/users
 GET    /api/v1/admin/users/:id
 PATCH  /api/v1/admin/users/:id/role
 PATCH  /api/v1/admin/users/:id/status
+GET    /api/v1/attractions
+GET    /api/v1/attractions/:id
+GET    /api/v1/admin/attractions
+POST   /api/v1/admin/attractions
+GET    /api/v1/managed-attractions
+GET    /api/v1/me/favorites
+PUT    /api/v1/me/favorites/:id
+DELETE /api/v1/me/favorites/:id
+GET    /api/v1/packages/options
+GET    /api/v1/packages
+GET    /api/v1/packages/:id
+GET    /api/v1/packages/:id/photos/:photo
+GET    /api/v1/agency/packages
+POST   /api/v1/agency/packages
+GET    /api/v1/agency/packages/attractions
+GET    /api/v1/agency/packages/:id
+PUT    /api/v1/agency/packages/:id
+GET    /api/v1/agency/packages/:id/photos/:photo
+PATCH  /api/v1/agency/packages/:id/departures/:departure
+POST   /api/v1/agency/packages/:id/departures/:departure/cancel
+POST   /api/v1/agency/packages/:id/departures/:departure/minimum-refund
+GET    /api/v1/me/packages/:id/payment-options
+GET    /api/v1/me/purchases
+POST   /api/v1/me/purchases
+GET    /api/v1/me/purchases/:id
+GET    /api/v1/me/purchases/:id/proof
+PATCH  /api/v1/me/purchases/:id/proof
+POST   /api/v1/me/purchases/:id/cancel
+PATCH  /api/v1/me/purchases/:id/refund-destination
+GET    /api/v1/me/purchases/:id/refund-qr
+GET    /api/v1/me/purchases/:id/refund-proof
+GET    /api/v1/agency/purchases
+GET    /api/v1/agency/purchases/:id
+GET    /api/v1/agency/purchases/:id/proof
+GET    /api/v1/agency/purchases/:id/refund-qr
+GET    /api/v1/agency/purchases/:id/refund-proof
+PATCH  /api/v1/agency/purchases/:id/review
+PATCH  /api/v1/agency/purchases/:id/refund
 ```
 
 ## Tema visual
@@ -253,7 +316,11 @@ npm audit --omit=dev
 
 No hay script de lint separado; `go vet`, `gofmt` y el typecheck estricto cubren las comprobaciones estáticas disponibles en este starter.
 
+La última revisión funcional y técnica está resumida en [auditoría integral](docs/auditoria-integral.md), con el resultado detallado de Medusa Auditor en `.medusa-auditor/results/integrated-release-report.md`.
+
 ## Producción
+
+La guía operativa completa está en [despliegue de producción](docs/despliegue-produccion.md) y la plantilla segura en [`.env.production.example`](./.env.production.example).
 
 1. Usa secretos aleatorios externos al repositorio.
 2. Configura `APP_ENV=production`, orígenes HTTPS exactos y `NUXT_PUBLIC_API_BASE` público.
@@ -264,13 +331,13 @@ No hay script de lint separado; `go vet`, `gofmt` y el typecheck estricto cubren
 7. Cambia el rate limiter en memoria por Redis si despliegas varias réplicas.
 8. Ejecuta backups, monitorización y rotación de secretos según tu infraestructura.
 
-Comando base:
+Comando base después de crear `.env.production`:
 
 ```powershell
-docker compose -f docker-compose.prod.yml up --build -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 ```
 
-PostgreSQL, backend y frontend no publican puertos en el Compose de producción; solo Nginx expone el puerto de entrada.
+PostgreSQL, backend y frontend no publican puertos en el Compose de producción. Nginx se enlaza por defecto a `127.0.0.1:8088` para recibir tráfico de un proxy TLS.
 
 ## Crear un proyecto nuevo desde esta base
 

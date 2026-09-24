@@ -31,8 +31,12 @@ Los intervalos se distribuyen de forma irregular entre 7 y 14 días. Los título
 
 - Base y módulo 1: archivos presentes y preparados en el índice, con algunas modificaciones posteriores.
 - Módulo 2: archivos presentes, varios todavía sin seguimiento; su documentación describe el alcance entregado. Esta revisión de Git no volvió a ejecutar sus pruebas funcionales.
-- Módulos 3–7: pendientes según el alcance y los archivos revisados. Las fechas son objetivos propuestos, no entregas ya realizadas.
-- La retención de cupos de diez minutos, el plazo de revisión de comprobantes y la fecha límite del mínimo de salida siguen pendientes de decisión.
+- Módulo 3: implementación y documentación presentes en el árbol de trabajo. El 21/09/2026 se verificaron las pruebas Go, las ocho pruebas de frontend y la comprobación de tipos; todavía debe prepararse como entrega Git independiente.
+- Módulos 4–6: implementación y documentación presentes en el árbol de trabajo; todavía deben prepararse como entregas Git independientes.
+- Módulo 7: portada pública, navegación y paneles por rol presentes en el árbol de trabajo y documentados; todavía debe prepararse como entrega Git independiente.
+- Auditoría integral: pruebas de roles, agencias, atracciones, paquetes, compras, reembolsos, paneles y rutas públicas aprobadas el 25/09/2026. La compilación de contenedores quedó bloqueada por no estar disponible Docker Engine en este equipo.
+- Despliegue: composición, variables y guía preparadas; la publicación real, HTTPS y Google OAuth quedan pendientes del dominio y del acceso al servidor.
+- El flujo acordado no reserva mientras se transfiere: retiene al aceptar el comprobante. El cierre sin mínimo requiere confirmación de la agencia y los reembolsos tienen un plazo de 72 horas.
 
 ## Preparación de cada entrega
 
@@ -48,7 +52,45 @@ El 20/09/2026 se prepararon las entregas 2–10 a partir de archivos existentes.
 
 Los títulos se ajustaron al contenido real: el backend del módulo 1 ya contiene Google, perfiles y administración; la entrega del 15/08 agrega sus pruebas y documentación. La API de agencias ya contiene configuración de pagos; la entrega del 02/09 incorpora la interfaz. No se ha simulado una implementación separada de funciones que ya estaban integradas.
 
-Las entregas iniciales de infraestructura y esquema son parciales; el primer conjunto completo del módulo 1 queda reunido en la entrega 7. El módulo 2 queda reunido y documentado en la entrega 10. No se publican implementaciones de los módulos 3–7.
+Las entregas iniciales de infraestructura y esquema son parciales; el primer conjunto completo del módulo 1 queda reunido en la entrega 7. El módulo 2 queda reunido y documentado en la entrega 10. La implementación posterior de los módulos 3–7 permanece en el árbol de trabajo hasta preparar y revisar sus entregas; todavía no se ha publicado este conjunto.
 
 Verificación de esta publicación: pruebas unitarias Go, go vet, cuatro pruebas frontend y comprobación de tipos aprobadas. Las pruebas de integración con PostgreSQL no se ejecutaron en esta sesión porque TEST_DATABASE_DSN no estaba configurada; las verificaciones anteriores descritas en los documentos de módulos son antecedentes, no resultados de esta sesión.
 La compilación de producción del frontend también terminó correctamente en esta sesión.
+
+
+## Actualización del cronograma: entregas del 14 al 24 de septiembre
+
+Preparación y publicación de este lote: 26/09/2026. A solicitud del propietario, los siguientes commits usan fechas de referencia del 14 al 24/09/2026. No son evidencia de ejecución o publicación en esos días. Los informes conservan sus fechas reales de verificación, incluidas las del 25/09. Esta tabla reemplaza la planificación futura anterior de los módulos 3–7; las secciones anteriores se conservan como antecedentes.
+
+Se agregan 21 commits, con un máximo de tres por día contando el commit del 14/09 que ya existía. Los esquemas se incorporan antes de las API. El backend integrado incluye funciones compartidas de los módulos 3–7; las entregas posteriores añaden interfaces, pruebas y documentación sin atribuir una segunda implementación a esas mismas funciones.
+
+| Fecha de referencia | Mensaje |
+| --- | --- |
+| 2026-09-14 14:10 | `chore: excluye la documentacion local y habilita la plantilla de produccion` |
+| 2026-09-14 17:25 | `fix: limita la configuracion comercial al encargado de agencia` |
+| 2026-09-15 09:20 | `feat: incorpora el esquema de atracciones, horarios y fotografias` |
+| 2026-09-15 13:40 | `feat: modela paquetes, programaciones y excepciones de salidas` |
+| 2026-09-15 18:05 | `feat: incorpora compras, revision de pagos y reembolsos en la base de datos` |
+| 2026-09-16 15:30 | `feat: integra las API de atracciones, paquetes, compras y reembolsos` |
+| 2026-09-17 10:15 | `feat: configura mapas vectoriales y navegacion publica por rol` |
+| 2026-09-17 16:40 | `feat: implementa el catalogo de atracciones, edicion y favoritos` |
+| 2026-09-18 11:35 | `test: cierra la entrega de atracciones con pruebas de horarios y ubicacion` |
+| 2026-09-18 17:10 | `feat: agrega la gestion de paquetes y su catalogo publico` |
+| 2026-09-19 10:50 | `chore: agrega paquetes demostrativos para desarrollo` |
+| 2026-09-19 16:20 | `docs: finaliza la entrega de paquetes, salidas y sus reglas` |
+| 2026-09-20 14:30 | `feat: incorpora compra, comprobantes y seguimiento de reembolsos` |
+| 2026-09-21 09:45 | `test: verifica los estados de compra y destinos de reembolso` |
+| 2026-09-21 16:55 | `docs: cierra los modulos de compras, cancelaciones y reembolsos` |
+| 2026-09-22 10:25 | `fix: conserva la sesion en SSR y corrige la proteccion de rutas` |
+| 2026-09-22 17:35 | `fix: exige HTTPS y credenciales robustas en produccion` |
+| 2026-09-23 11:20 | `feat: completa la portada y los paneles de Andaria por rol` |
+| 2026-09-23 18:10 | `chore: prepara Docker y Nginx para el despliegue con HTTPS externo` |
+| 2026-09-24 10:40 | `docs: incorpora las matrices y resultados de auditoria funcional` |
+| 2026-09-24 17:20 | `docs: actualiza el alcance y registra el cierre de los modulos web` |
+
+Estado del lote: módulos web 1–7 presentes. La finalización se refiere a su implementación y documentación; no acredita despliegue público ni ejecución real de pagos bancarios. Permanecen pendientes el servidor, dominio, HTTPS, OAuth real y las verificaciones finales de contenedores y restauración.
+
+Verificación de esta sesión: pruebas Go y go vet aprobados; 16 pruebas frontend y comprobación de tipos aprobadas. Las pruebas de integración PostgreSQL se omiten sin TEST_DATABASE_DSN; los informes de auditoría describen ejecuciones anteriores y no se presentan como repetidas hoy. La carpeta `documentacion para el diplomando/`, los entornos reales y las copias locales siguen excluidos.
+
+
+La compilación de producción del frontend también fue aprobada en esta sesión, con avisos de tamaño del mapa y de dependencias obsoletas que no impidieron generar la aplicación.
