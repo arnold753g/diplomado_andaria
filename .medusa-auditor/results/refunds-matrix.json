@@ -1,0 +1,557 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "refunds",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "Reaching the booking close below the minimum only marks the departure for review and never starts refunds without agency confirmation",
+    "A valid tourist cancellation atomically releases held or confirmed capacity and starts a full refund",
+    "A late or policy-disabled cancellation preserves the purchase and its capacity",
+    "Every refund deadline is exactly 72 hours after the refund request",
+    "A refund can be completed only after the tourist provides a valid QR or bank destination and the agency uploads proof of at most 5 MB",
+    "Only the purchase owner and assigned agency manager can read refund QR and proof images",
+    "Only the assigned agency manager can confirm a minimum shortfall or complete its refunds"
+  ],
+  "cases": [
+    {
+      "id": "REFUNDS-001",
+      "kind": "positive",
+      "title": "tourist performs tourist_cancel from confirmed",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel"
+      },
+      "expected": "State becomes refund_pending_ready exactly once"
+    },
+    {
+      "id": "REFUNDS-002",
+      "kind": "positive",
+      "title": "tourist performs tourist_cancel from payment_review",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "tourist_cancel"
+      },
+      "expected": "State becomes refund_pending_ready exactly once"
+    },
+    {
+      "id": "REFUNDS-003",
+      "kind": "positive",
+      "title": "tourist performs tourist_cancel from correction_requested",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "tourist_cancel"
+      },
+      "expected": "State becomes refund_pending_ready exactly once"
+    },
+    {
+      "id": "REFUNDS-004",
+      "kind": "authorization",
+      "title": "guest cannot perform tourist_cancel",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-005",
+      "kind": "authorization",
+      "title": "admin cannot perform tourist_cancel",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-006",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform tourist_cancel",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-007",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform tourist_cancel",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-008",
+      "kind": "authorization",
+      "title": "system cannot perform tourist_cancel",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-009",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit tourist_cancel from the same version",
+      "actors": [
+        "tourist",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "tourist_cancel",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "REFUNDS-010",
+      "kind": "positive",
+      "title": "system performs evaluate_minimum from confirmed",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum"
+      },
+      "expected": "State becomes minimum_review exactly once"
+    },
+    {
+      "id": "REFUNDS-011",
+      "kind": "authorization",
+      "title": "guest cannot perform evaluate_minimum",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-012",
+      "kind": "authorization",
+      "title": "admin cannot perform evaluate_minimum",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-013",
+      "kind": "authorization",
+      "title": "tourist cannot perform evaluate_minimum",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-014",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform evaluate_minimum",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-015",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform evaluate_minimum",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-016",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit evaluate_minimum from the same version",
+      "actors": [
+        "system",
+        "system"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "action": "evaluate_minimum",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "REFUNDS-017",
+      "kind": "positive",
+      "title": "agency_manager performs confirm_minimum_refund from minimum_review",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund"
+      },
+      "expected": "State becomes refund_pending_missing_destination exactly once"
+    },
+    {
+      "id": "REFUNDS-018",
+      "kind": "authorization",
+      "title": "guest cannot perform confirm_minimum_refund",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-019",
+      "kind": "authorization",
+      "title": "admin cannot perform confirm_minimum_refund",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-020",
+      "kind": "authorization",
+      "title": "tourist cannot perform confirm_minimum_refund",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-021",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform confirm_minimum_refund",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-022",
+      "kind": "authorization",
+      "title": "system cannot perform confirm_minimum_refund",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-023",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit confirm_minimum_refund from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "minimum_review",
+        "action": "confirm_minimum_refund",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "REFUNDS-024",
+      "kind": "positive",
+      "title": "tourist performs add_refund_destination from refund_pending_missing_destination",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination"
+      },
+      "expected": "State becomes refund_pending_ready exactly once"
+    },
+    {
+      "id": "REFUNDS-025",
+      "kind": "positive",
+      "title": "tourist performs add_refund_destination from refund_pending_ready",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "add_refund_destination"
+      },
+      "expected": "State becomes refund_pending_ready exactly once"
+    },
+    {
+      "id": "REFUNDS-026",
+      "kind": "authorization",
+      "title": "guest cannot perform add_refund_destination",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-027",
+      "kind": "authorization",
+      "title": "admin cannot perform add_refund_destination",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-028",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform add_refund_destination",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-029",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform add_refund_destination",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-030",
+      "kind": "authorization",
+      "title": "system cannot perform add_refund_destination",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-031",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit add_refund_destination from the same version",
+      "actors": [
+        "tourist",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "refund_pending_missing_destination",
+        "action": "add_refund_destination",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "REFUNDS-032",
+      "kind": "positive",
+      "title": "agency_manager performs complete_refund from refund_pending_ready",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund"
+      },
+      "expected": "State becomes refunded exactly once"
+    },
+    {
+      "id": "REFUNDS-033",
+      "kind": "authorization",
+      "title": "guest cannot perform complete_refund",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-034",
+      "kind": "authorization",
+      "title": "admin cannot perform complete_refund",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-035",
+      "kind": "authorization",
+      "title": "tourist cannot perform complete_refund",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-036",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform complete_refund",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-037",
+      "kind": "authorization",
+      "title": "system cannot perform complete_refund",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "REFUNDS-038",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit complete_refund from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "action": "complete_refund",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "REFUNDS-039",
+      "kind": "concurrency_conflict",
+      "title": "tourist_cancel races with evaluate_minimum",
+      "actors": [
+        "tourist",
+        "system"
+      ],
+      "preconditions": {
+        "state": "confirmed",
+        "actions": [
+          "tourist_cancel",
+          "evaluate_minimum"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "REFUNDS-040",
+      "kind": "concurrency_conflict",
+      "title": "add_refund_destination races with complete_refund",
+      "actors": [
+        "tourist",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "refund_pending_ready",
+        "actions": [
+          "add_refund_destination",
+          "complete_refund"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "project": {
+    "name": "Andaria Diplomado"
+  },
+  "target": {
+    "base_url": "http://localhost:3000",
+    "environment": "development",
+    "allowed_hosts": ["localhost", "127.0.0.1"]
+  },
+  "roles": [
+    {"name": "guest"},
+    {"name": "admin", "username_env": "MEDUSA_ADMIN_USER", "password_env": "MEDUSA_ADMIN_PASSWORD"},
+    {"name": "tourist", "username_env": "MEDUSA_TOURIST_USER", "password_env": "MEDUSA_TOURIST_PASSWORD"},
+    {"name": "agency_manager", "username_env": "MEDUSA_AGENCY_USER", "password_env": "MEDUSA_AGENCY_PASSWORD"},
+    {"name": "attraction_manager", "username_env": "MEDUSA_ATTRACTION_USER", "password_env": "MEDUSA_ATTRACTION_PASSWORD"},
+    {"name": "system"}
+  ],
+  "modules": {
+    "users_access": {
+      "entry_path": "/login",
+      "states": ["anonymous", "authenticated", "inactive", "expired"],
+      "actions": [
+        {"name": "register", "from": ["anonymous"], "to": "authenticated", "roles": ["guest"]},
+        {"name": "login", "from": ["anonymous", "expired"], "to": "authenticated", "roles": ["admin", "tourist", "agency_manager", "attraction_manager"]},
+        {"name": "update_role", "from": ["authenticated"], "to": "authenticated", "roles": ["admin"]}
+      ],
+      "invariants": [
+        "Public registration always creates a tourist",
+        "Sessions use an HttpOnly cookie and unsafe requests require CSRF",
+        "Inactive users and expired sessions cannot access protected routes",
+        "Only an administrator can create staff accounts or change roles",
+        "Changing a password, role, or status revokes affected sessions"
+      ]
+    },
+    "agencies": {
+      "entry_path": "/admin/agencies",
+      "states": ["created", "assigned", "configured", "published"],
+      "actions": [
+        {"name": "create_agency", "from": ["created"], "to": "assigned", "roles": ["admin"]},
+        {"name": "configure_commercial_policy", "from": ["assigned", "configured"], "to": "configured", "roles": ["agency_manager"]},
+        {"name": "publish_agency", "from": ["configured"], "to": "published", "roles": ["admin"]}
+      ],
+      "invariants": [
+        "Only the administrator creates agencies and assigns managers",
+        "An agency manager belongs to at most one agency",
+        "The administrator cannot edit minor policy or payment methods",
+        "Only the assigned agency manager edits its commercial policy",
+        "QR and banking data are not exposed in the public agency representation"
+      ]
+    },
+    "attractions": {
+      "entry_path": "/attractions",
+      "states": ["draft", "published", "inactive"],
+      "actions": [
+        {"name": "create_and_assign", "from": ["draft"], "to": "draft", "roles": ["admin"]},
+        {"name": "edit_attraction", "from": ["draft", "published"], "to": "draft", "roles": ["attraction_manager"]},
+        {"name": "publish_attraction", "from": ["draft"], "to": "published", "roles": ["attraction_manager"]},
+        {"name": "favorite", "from": ["published"], "to": "published", "roles": ["tourist"]}
+      ],
+      "invariants": [
+        "Only the administrator creates attractions and assigns one manager",
+        "An attraction manager can manage multiple assigned attractions only",
+        "The public catalog exposes only active published attractions",
+        "Schedules and seasons use structured values rather than free text",
+        "Favorites are private to their tourist owner"
+      ]
+    },
+    "home_dashboards": {
+      "entry_path": "/",
+      "states": ["public_home", "role_dashboard"],
+      "actions": [
+        {"name": "browse_home", "from": ["public_home"], "to": "public_home", "roles": ["guest", "admin", "tourist", "agency_manager", "attraction_manager"]},
+        {"name": "view_personal_dashboard", "from": ["role_dashboard"], "to": "role_dashboard", "roles": ["tourist", "agency_manager", "attraction_manager"]},
+        {"name": "view_admin_dashboard", "from": ["role_dashboard"], "to": "role_dashboard", "roles": ["admin"]}
+      ],
+      "invariants": [
+        "The public home never requires a session",
+        "Home content comes only from published and currently available catalog data",
+        "Personal dashboard counters are scoped to the authenticated tourist or manager",
+        "The administrator dashboard contains global counts but no personal dashboard",
+        "Protected dashboard routes reject anonymous and cross-role access"
+      ]
+    },
+    "packages": {
+      "entry_path": "/packages",
+      "states": ["draft", "published_bookable", "published_unavailable", "cancelled"],
+      "actions": [
+        {"name": "publish", "from": ["draft"], "to": "published_bookable", "roles": ["agency_manager"]},
+        {"name": "browse", "from": ["published_bookable", "published_unavailable"], "to": "published_bookable", "roles": ["guest", "admin", "tourist", "agency_manager", "attraction_manager"]},
+        {"name": "adjust_departure", "from": ["published_bookable"], "to": "published_bookable", "roles": ["agency_manager"]},
+        {"name": "cancel_departure", "from": ["published_bookable"], "to": "published_unavailable", "roles": ["agency_manager"]}
+      ],
+      "invariants": [
+        "Only published packages from active and published agencies appear in the public catalog",
+        "A tourist selects a generated departure identifier and never submits a free-form date",
+        "Available capacity excludes held and confirmed capacity while only confirmed capacity counts toward the minimum",
+        "Purchase availability requires an open window, a future departure, a permitted state, and remaining capacity",
+        "Only the assigned agency manager can change or cancel a departure",
+        "Manual departure exceptions survive later schedule regeneration"
+      ]
+    },
+    "purchases": {
+      "entry_path": "/app/purchases",
+      "states": ["bookable", "payment_review", "correction_requested", "confirmed", "refund_pending", "refunded"],
+      "actions": [
+        {"name": "purchase", "from": ["bookable"], "to": "payment_review", "roles": ["tourist"]},
+        {"name": "request_correction", "from": ["payment_review"], "to": "correction_requested", "roles": ["agency_manager"]},
+        {"name": "resubmit_proof", "from": ["correction_requested"], "to": "payment_review", "roles": ["tourist"]},
+        {"name": "confirm", "from": ["payment_review"], "to": "confirmed", "roles": ["agency_manager"]},
+        {"name": "send_to_refund", "from": ["payment_review"], "to": "refund_pending", "roles": ["agency_manager"]}
+      ],
+      "invariants": [
+        "A purchase always references an existing generated departure and never accepts a free-form date",
+        "Submitting proof atomically discounts capacity into held capacity without counting it toward the minimum",
+        "Confirming payment atomically moves capacity from held to confirmed and updates the departure minimum state",
+        "Minors below the agency minimum age are recorded but neither pay nor consume capacity",
+        "Foreign surcharge applies to every foreign participant who pays",
+        "A correction request preserves held capacity while a refund request releases it",
+        "Concurrent attempts for the last seat create at most one purchase",
+        "Only the tourist owner and the assigned agency manager can see a purchase and its proof"
+      ]
+    },
+    "refunds": {
+      "entry_path": "/app/purchases",
+      "states": ["confirmed", "payment_review", "correction_requested", "minimum_review", "refund_pending_missing_destination", "refund_pending_ready", "refunded"],
+      "actions": [
+        {"name": "tourist_cancel", "from": ["confirmed", "payment_review", "correction_requested"], "to": "refund_pending_ready", "roles": ["tourist"]},
+        {"name": "evaluate_minimum", "from": ["confirmed"], "to": "minimum_review", "roles": ["system"]},
+        {"name": "confirm_minimum_refund", "from": ["minimum_review"], "to": "refund_pending_missing_destination", "roles": ["agency_manager"]},
+        {"name": "add_refund_destination", "from": ["refund_pending_missing_destination", "refund_pending_ready"], "to": "refund_pending_ready", "roles": ["tourist"]},
+        {"name": "complete_refund", "from": ["refund_pending_ready"], "to": "refunded", "roles": ["agency_manager"]}
+      ],
+      "invariants": [
+        "Reaching the booking close below the minimum only marks the departure for review and never starts refunds without agency confirmation",
+        "A valid tourist cancellation atomically releases held or confirmed capacity and starts a full refund",
+        "A late or policy-disabled cancellation preserves the purchase and its capacity",
+        "Every refund deadline is exactly 72 hours after the refund request",
+        "A refund can be completed only after the tourist provides a valid QR or bank destination and the agency uploads proof of at most 5 MB",
+        "Only the purchase owner and assigned agency manager can read refund QR and proof images",
+        "Only the assigned agency manager can confirm a minimum shortfall or complete its refunds"
+      ]
+    }
+  },
+  "commands": {
+    "backend_tests": ["go", "test", "./..."],
+    "frontend_tests": ["npm.cmd", "test"],
+    "frontend_typecheck": ["npm.cmd", "run", "typecheck"]
+  },
+  "safety": {
+    "allow_mutations": true,
+    "allow_fault_injection": false,
+    "allow_load": false,
+    "max_ui_sessions": 4,
+    "max_virtual_users": 20
+  },
+  "evidence": {
+    "output_dir": ".medusa-auditor/results"
+  }
+}

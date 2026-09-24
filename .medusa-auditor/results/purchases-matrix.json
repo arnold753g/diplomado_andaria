@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "purchases",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "A purchase always references an existing generated departure and never accepts a free-form date",
+    "Submitting proof atomically discounts capacity into held capacity without counting it toward the minimum",
+    "Confirming payment atomically moves capacity from held to confirmed and updates the departure minimum state",
+    "Minors below the agency minimum age are recorded but neither pay nor consume capacity",
+    "Foreign surcharge applies to every foreign participant who pays",
+    "A correction request preserves held capacity while a refund request releases it",
+    "Concurrent attempts for the last seat create at most one purchase",
+    "Only the tourist owner and the assigned agency manager can see a purchase and its proof"
+  ],
+  "cases": [
+    {
+      "id": "PURCHASES-001",
+      "kind": "positive",
+      "title": "tourist performs purchase from bookable",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "bookable",
+        "action": "purchase"
+      },
+      "expected": "State becomes payment_review exactly once"
+    },
+    {
+      "id": "PURCHASES-002",
+      "kind": "authorization",
+      "title": "guest cannot perform purchase",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "bookable",
+        "action": "purchase"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-003",
+      "kind": "authorization",
+      "title": "admin cannot perform purchase",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "bookable",
+        "action": "purchase"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-004",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform purchase",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "bookable",
+        "action": "purchase"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-005",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform purchase",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "bookable",
+        "action": "purchase"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-006",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit purchase from the same version",
+      "actors": [
+        "tourist",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "bookable",
+        "action": "purchase",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PURCHASES-007",
+      "kind": "positive",
+      "title": "agency_manager performs request_correction from payment_review",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "request_correction"
+      },
+      "expected": "State becomes correction_requested exactly once"
+    },
+    {
+      "id": "PURCHASES-008",
+      "kind": "authorization",
+      "title": "guest cannot perform request_correction",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "request_correction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-009",
+      "kind": "authorization",
+      "title": "admin cannot perform request_correction",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "request_correction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-010",
+      "kind": "authorization",
+      "title": "tourist cannot perform request_correction",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "request_correction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-011",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform request_correction",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "request_correction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-012",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit request_correction from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "request_correction",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PURCHASES-013",
+      "kind": "positive",
+      "title": "tourist performs resubmit_proof from correction_requested",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "resubmit_proof"
+      },
+      "expected": "State becomes payment_review exactly once"
+    },
+    {
+      "id": "PURCHASES-014",
+      "kind": "authorization",
+      "title": "guest cannot perform resubmit_proof",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "resubmit_proof"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-015",
+      "kind": "authorization",
+      "title": "admin cannot perform resubmit_proof",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "resubmit_proof"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-016",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform resubmit_proof",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "resubmit_proof"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-017",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform resubmit_proof",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "resubmit_proof"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-018",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit resubmit_proof from the same version",
+      "actors": [
+        "tourist",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "correction_requested",
+        "action": "resubmit_proof",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PURCHASES-019",
+      "kind": "positive",
+      "title": "agency_manager performs confirm from payment_review",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "confirm"
+      },
+      "expected": "State becomes confirmed exactly once"
+    },
+    {
+      "id": "PURCHASES-020",
+      "kind": "authorization",
+      "title": "guest cannot perform confirm",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "confirm"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-021",
+      "kind": "authorization",
+      "title": "admin cannot perform confirm",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "confirm"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-022",
+      "kind": "authorization",
+      "title": "tourist cannot perform confirm",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "confirm"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-023",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform confirm",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "confirm"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-024",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit confirm from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "confirm",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PURCHASES-025",
+      "kind": "positive",
+      "title": "agency_manager performs send_to_refund from payment_review",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "send_to_refund"
+      },
+      "expected": "State becomes refund_pending exactly once"
+    },
+    {
+      "id": "PURCHASES-026",
+      "kind": "authorization",
+      "title": "guest cannot perform send_to_refund",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "send_to_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-027",
+      "kind": "authorization",
+      "title": "admin cannot perform send_to_refund",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "send_to_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-028",
+      "kind": "authorization",
+      "title": "tourist cannot perform send_to_refund",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "send_to_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-029",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform send_to_refund",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "send_to_refund"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PURCHASES-030",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit send_to_refund from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "action": "send_to_refund",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PURCHASES-031",
+      "kind": "concurrency_conflict",
+      "title": "request_correction races with confirm",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "actions": [
+          "request_correction",
+          "confirm"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "PURCHASES-032",
+      "kind": "concurrency_conflict",
+      "title": "request_correction races with send_to_refund",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "actions": [
+          "request_correction",
+          "send_to_refund"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "PURCHASES-033",
+      "kind": "concurrency_conflict",
+      "title": "confirm races with send_to_refund",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "payment_review",
+        "actions": [
+          "confirm",
+          "send_to_refund"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}

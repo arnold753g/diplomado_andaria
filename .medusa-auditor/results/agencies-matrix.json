@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "agencies",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "Only the administrator creates agencies and assigns managers",
+    "An agency manager belongs to at most one agency",
+    "The administrator cannot edit minor policy or payment methods",
+    "Only the assigned agency manager edits its commercial policy",
+    "QR and banking data are not exposed in the public agency representation"
+  ],
+  "cases": [
+    {
+      "id": "AGENCIES-001",
+      "kind": "positive",
+      "title": "admin performs create_agency from created",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency"
+      },
+      "expected": "State becomes assigned exactly once"
+    },
+    {
+      "id": "AGENCIES-002",
+      "kind": "authorization",
+      "title": "guest cannot perform create_agency",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-003",
+      "kind": "authorization",
+      "title": "tourist cannot perform create_agency",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-004",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform create_agency",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-005",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform create_agency",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-006",
+      "kind": "authorization",
+      "title": "system cannot perform create_agency",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-007",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit create_agency from the same version",
+      "actors": [
+        "admin",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "created",
+        "action": "create_agency",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "AGENCIES-008",
+      "kind": "positive",
+      "title": "agency_manager performs configure_commercial_policy from assigned",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "State becomes configured exactly once"
+    },
+    {
+      "id": "AGENCIES-009",
+      "kind": "positive",
+      "title": "agency_manager performs configure_commercial_policy from configured",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "State becomes configured exactly once"
+    },
+    {
+      "id": "AGENCIES-010",
+      "kind": "authorization",
+      "title": "guest cannot perform configure_commercial_policy",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-011",
+      "kind": "authorization",
+      "title": "admin cannot perform configure_commercial_policy",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-012",
+      "kind": "authorization",
+      "title": "tourist cannot perform configure_commercial_policy",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-013",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform configure_commercial_policy",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-014",
+      "kind": "authorization",
+      "title": "system cannot perform configure_commercial_policy",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-015",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit configure_commercial_policy from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "assigned",
+        "action": "configure_commercial_policy",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "AGENCIES-016",
+      "kind": "positive",
+      "title": "admin performs publish_agency from configured",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency"
+      },
+      "expected": "State becomes published exactly once"
+    },
+    {
+      "id": "AGENCIES-017",
+      "kind": "authorization",
+      "title": "guest cannot perform publish_agency",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-018",
+      "kind": "authorization",
+      "title": "tourist cannot perform publish_agency",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-019",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform publish_agency",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-020",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform publish_agency",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-021",
+      "kind": "authorization",
+      "title": "system cannot perform publish_agency",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "AGENCIES-022",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit publish_agency from the same version",
+      "actors": [
+        "admin",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "action": "publish_agency",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "AGENCIES-023",
+      "kind": "concurrency_conflict",
+      "title": "configure_commercial_policy races with publish_agency",
+      "actors": [
+        "agency_manager",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "configured",
+        "actions": [
+          "configure_commercial_policy",
+          "publish_agency"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}

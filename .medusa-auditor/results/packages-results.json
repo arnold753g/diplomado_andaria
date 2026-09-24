@@ -1,0 +1,232 @@
+{
+  "run": {
+    "project": "Andaria Diplomado",
+    "module": "Paquetes turísticos: gestión, programación y catálogo público",
+    "target": "http://localhost:3000",
+    "started_at": "2026-09-22"
+  },
+  "cases": [
+    {
+      "id": "PKG-001",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El catálogo solo publica paquetes visibles de agencias activas y publicadas",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go",
+        "GET /api/v1/packages = 200"
+      ]
+    },
+    {
+      "id": "PKG-002",
+      "status": "passed",
+      "severity": "high",
+      "title": "Los borradores y paquetes cancelados no se exponen al turista",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go"
+      ]
+    },
+    {
+      "id": "PKG-003",
+      "status": "passed",
+      "severity": "high",
+      "title": "El detalle y las fotografías respetan el mismo alcance público",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go",
+        "Las fotografías ajenas o inexistentes responden 404"
+      ]
+    },
+    {
+      "id": "PKG-004",
+      "status": "passed",
+      "severity": "medium",
+      "title": "Los filtros inválidos de dificultad, precio y fecha responden 422",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go",
+        "Pruebas HTTP locales de filtros inválidos"
+      ]
+    },
+    {
+      "id": "PKG-005",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El cupo disponible descuenta retenciones y confirmaciones",
+      "evidence": [
+        "backend/internal/handlers/package_catalog_test.go"
+      ]
+    },
+    {
+      "id": "PKG-006",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Solo las compras confirmadas cuentan para alcanzar el cupo mínimo",
+      "evidence": [
+        "backend/internal/handlers/package_catalog_test.go"
+      ]
+    },
+    {
+      "id": "PKG-007",
+      "status": "passed",
+      "severity": "high",
+      "title": "La venta exige salida futura, ventana abierta, estado permitido y cupo",
+      "evidence": [
+        "backend/internal/handlers/package_catalog_test.go",
+        "backend/internal/handlers/package_departure_test.go"
+      ]
+    },
+    {
+      "id": "PKG-008",
+      "status": "passed",
+      "severity": "medium",
+      "title": "El itinerario público omite atracciones que dejaron de estar publicadas",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go"
+      ]
+    },
+    {
+      "id": "PKG-009",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Una agencia no puede administrar paquetes de otra agencia",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go"
+      ]
+    },
+    {
+      "id": "PKG-010",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Turista, administrador y encargado de atracción no acceden a la gestión de paquetes",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go",
+        "Pruebas de sesión reales para turista y administrador"
+      ]
+    },
+    {
+      "id": "PKG-011",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Dos actualizaciones simultáneas de la misma salida producen un único cambio",
+      "evidence": [
+        "Prueba PostgreSQL sincronizada: una respuesta 200 y una 409",
+        "backend/internal/httpapi/package_integration_test.go"
+      ]
+    },
+    {
+      "id": "PKG-012",
+      "status": "passed",
+      "severity": "high",
+      "title": "Una excepción manual de salida sobrevive a la regeneración de la programación",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go",
+        "backend/internal/handlers/package_schedule_test.go"
+      ]
+    },
+    {
+      "id": "PKG-013",
+      "status": "passed",
+      "severity": "high",
+      "title": "Las frecuencias única, diaria y por días de semana generan salidas concretas acotadas",
+      "evidence": [
+        "backend/internal/handlers/package_schedule_test.go"
+      ]
+    },
+    {
+      "id": "PKG-014",
+      "status": "passed",
+      "severity": "high",
+      "title": "La cancelación conserva motivo y trazabilidad y deja de publicar la salida",
+      "evidence": [
+        "backend/internal/httpapi/package_integration_test.go"
+      ]
+    },
+    {
+      "id": "PKG-015",
+      "status": "passed",
+      "severity": "high",
+      "title": "La publicación exige datos comerciales, fotografía e itinerario válidos",
+      "evidence": [
+        "backend/internal/handlers/package_test.go"
+      ]
+    },
+    {
+      "id": "PKG-016",
+      "status": "passed",
+      "severity": "medium",
+      "title": "El catálogo público muestra filtros, tarjetas, estado vacío y restauración",
+      "evidence": [
+        "Revisión funcional en /packages en escritorio y viewport móvil de 390 x 844 px",
+        "frontend/components/packages/PackageCatalog.vue"
+      ]
+    },
+    {
+      "id": "PKG-017",
+      "status": "passed",
+      "severity": "medium",
+      "title": "La ficha pública muestra galería, itinerario, políticas y próximas salidas",
+      "evidence": [
+        "Revisión funcional en /packages/1 en escritorio y viewport móvil de 390 x 844 px",
+        "frontend/pages/packages/[id].vue"
+      ]
+    },
+    {
+      "id": "PKG-018",
+      "status": "passed",
+      "severity": "medium",
+      "title": "La navegación separa exploración pública de gestión según el rol",
+      "evidence": [
+        "frontend/tests/navigation.test.ts",
+        "frontend/utils/navigation.ts"
+      ]
+    },
+    {
+      "id": "PKG-019",
+      "status": "passed",
+      "severity": "medium",
+      "title": "El visitante ve ingreso y registro en vez de una acción de cierre de sesión",
+      "evidence": [
+        "Defecto observado, corregido y vuelto a comprobar en la interfaz",
+        "frontend/components/app/AppShell.vue"
+      ]
+    },
+    {
+      "id": "PKG-020",
+      "status": "passed",
+      "severity": "low",
+      "title": "Los importes, duración y estados de salida se presentan de forma consistente",
+      "evidence": [
+        "frontend/tests/package-catalog.test.ts"
+      ]
+    },
+    {
+      "id": "PKG-021",
+      "status": "passed",
+      "severity": "high",
+      "title": "La API aplica cabeceras de seguridad y no presenta errores de consola en las vistas auditadas",
+      "evidence": [
+        "X-Content-Type-Options: nosniff",
+        "X-Frame-Options: DENY",
+        "Registro de consola del navegador vacío"
+      ]
+    },
+    {
+      "id": "PKG-022",
+      "status": "passed",
+      "severity": "high",
+      "title": "Pruebas Go, go vet, tipos, pruebas frontend y compilación de producción finalizan correctamente",
+      "evidence": [
+        "go test ./...",
+        "go vet ./...",
+        "npm test: 13/13",
+        "npm run typecheck",
+        "npm run build"
+      ]
+    }
+  ],
+  "untested_risks": [
+    "La creación de compra, retención corta de cupos, comprobante, validación de pago y reembolso pertenecen a los módulos 5 y 6 y aún no existen.",
+    "La aplicación Flutter que compartirá este backend todavía no está implementada.",
+    "No se ejecutaron pruebas de carga ni inyección de fallos; el entorno auditado es de desarrollo y la configuración evita acciones disruptivas.",
+    "La compilación advierte que el bloque de MapLibre supera 500 kB; no impide el funcionamiento, pero su tiempo de carga debe medirse antes de publicar.",
+    "La navegación de turista autenticado se verificó con pruebas unitarias y sesiones API; la auditoría visual de este ciclo se realizó como visitante."
+  ]
+}

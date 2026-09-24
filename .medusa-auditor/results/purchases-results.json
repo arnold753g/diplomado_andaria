@@ -1,0 +1,214 @@
+{
+  "run": {
+    "project": "Andaria Diplomado",
+    "module": "Compra de paquetes y revisión de pagos",
+    "target": "http://localhost:3000",
+    "started_at": "2026-09-23"
+  },
+  "cases": [
+    {
+      "id": "PUR-001",
+      "status": "passed",
+      "severity": "high",
+      "title": "Los paquetes diarios, únicos y por días específicos generan salidas y cupos diferentes",
+      "evidence": ["Paquetes de desarrollo 3, 4 y 5", "backend/internal/seed/demo_packages.go"]
+    },
+    {
+      "id": "PUR-002",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El turista compra una salida concreta y la compra queda en pago en revisión",
+      "evidence": ["backend/internal/httpapi/purchase_integration_test.go", "Tres compras de desarrollo creadas por API"]
+    },
+    {
+      "id": "PUR-003",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El precio utiliza copias de la tarifa nacional y del recargo extranjero",
+      "evidence": ["Cálculo comprobado: 85.000 centavos para tres participantes de pago", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-004",
+      "status": "passed",
+      "severity": "high",
+      "title": "El recargo extranjero se aplica también a menores que ya pagan",
+      "evidence": ["Menor extranjero de 8 años incluido en el total", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-005",
+      "status": "passed",
+      "severity": "high",
+      "title": "Los menores bajo la edad mínima quedan registrados sin pagar ni ocupar cupo",
+      "evidence": ["Menor de 5 años registrado como gratuito con mínimo de 6", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-006",
+      "status": "passed",
+      "severity": "high",
+      "title": "La compra exige un comprobante de imagen válido",
+      "evidence": ["Solicitud sin comprobante responde 422", "Comprobante PNG real aceptado y normalizado"]
+    },
+    {
+      "id": "PUR-007",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El comprobante aceptado retiene cupos dentro de la misma transacción",
+      "evidence": ["held_capacity pasa de 0 a 3", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-008",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Los cupos retenidos reducen disponibilidad pero no cuentan para el mínimo",
+      "evidence": ["Detalle público de /packages/4 mostró 12/14 y cinco faltantes para el mínimo", "Revisión funcional en navegador"]
+    },
+    {
+      "id": "PUR-009",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Confirmar el pago mueve cupos retenidos a confirmados",
+      "evidence": ["held_capacity 3 a 0 y confirmed_capacity 0 a 3", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-010",
+      "status": "passed",
+      "severity": "high",
+      "title": "Las compras confirmadas se acumulan hasta alcanzar el cupo mínimo",
+      "evidence": ["La salida permanece abierta con 3/4 y cambia a confirmada con 4/4", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-011",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Una compra que excede la disponibilidad se rechaza sin modificar cupos",
+      "evidence": ["Solicitud de siete cupos responde 409", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-012",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Dos compras concurrentes por el último cupo no producen sobreventa",
+      "evidence": ["Barrera sincronizada: una respuesta 201 y una 409", "Estado final held_capacity=1 y max_capacity=1"]
+    },
+    {
+      "id": "PUR-013",
+      "status": "passed",
+      "severity": "high",
+      "title": "Solicitar corrección conserva los cupos retenidos y registra el motivo",
+      "evidence": ["Estado correction_requested con held_capacity=2", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-014",
+      "status": "passed",
+      "severity": "high",
+      "title": "El turista propietario reemplaza el comprobante y devuelve la compra a revisión",
+      "evidence": ["PATCH de comprobante devuelve payment_review", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-015",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Enviar una compra a reembolso libera sus cupos",
+      "evidence": ["Estado refund_pending y held_capacity vuelve a 0", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-016",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Cancelar una salida registra las compras afectadas como reembolso pendiente",
+      "evidence": ["Compra afectada conserva motivo, revisor y fecha", "Salida cancelada sin cupos retenidos ni confirmados"]
+    },
+    {
+      "id": "PUR-017",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Un turista no puede consultar ni corregir la compra de otro turista",
+      "evidence": ["Las consultas y mutaciones ajenas responden 404", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-018",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Una agencia no puede consultar ni revisar compras de otra agencia",
+      "evidence": ["El encargado ajeno recibe 404", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-019",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Visitante, administrador, encargado de agencia y encargado de atracción no pueden comprar como turista",
+      "evidence": ["Matriz API: visitante 401 y roles no autorizados 403", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-020",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Solo el encargado de la agencia correspondiente puede revisar un pago",
+      "evidence": ["Visitante 401; turista, administrador y encargado de atracción 403; agencia ajena 404"]
+    },
+    {
+      "id": "PUR-021",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Solo el turista propietario puede corregir su comprobante",
+      "evidence": ["Visitante 401; roles no turistas 403; otro turista 404", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-022",
+      "status": "passed",
+      "severity": "high",
+      "title": "Una decisión repetida con versión antigua se rechaza",
+      "evidence": ["Segundo intento de confirmación responde 409", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-023",
+      "status": "passed",
+      "severity": "high",
+      "title": "Los medios de pago solo se entregan a turistas autenticados para paquetes públicos",
+      "evidence": ["Visitante 401; demás roles 403; turista 200", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "PUR-024",
+      "status": "passed",
+      "severity": "medium",
+      "title": "La interfaz calcula participantes, importe y muestra el flujo de comprobante",
+      "evidence": ["frontend/pages/packages/[id]/purchase.vue", "frontend/tests/purchase.test.ts"]
+    },
+    {
+      "id": "PUR-025",
+      "status": "passed",
+      "severity": "medium",
+      "title": "Turista y agencia disponen de bandejas separadas de compras",
+      "evidence": ["/app/purchases", "/agency/purchases", "frontend/tests/navigation.test.ts"]
+    },
+    {
+      "id": "PUR-026",
+      "status": "passed",
+      "severity": "medium",
+      "title": "El catálogo y la ficha pública muestran los paquetes de prueba sin errores de consola",
+      "evidence": ["Revisión funcional en /packages y /packages/4", "Consola del navegador vacía"]
+    },
+    {
+      "id": "PUR-027",
+      "status": "passed",
+      "severity": "high",
+      "title": "Las tres compras de desarrollo actualizan correctamente cupos distintos",
+      "evidence": ["Paquete 3: 6/8", "Paquete 4: 12/14", "Paquete 5: 4/5"]
+    },
+    {
+      "id": "PUR-028",
+      "status": "passed",
+      "severity": "high",
+      "title": "La batería técnica completa termina correctamente",
+      "evidence": ["go test ./...", "go vet ./...", "npm test: 15/15", "npm run typecheck", "npm run build"]
+    }
+  ],
+  "untested_risks": [
+    "La transferencia bancaria o pago por QR ocurre fuera de Andaria; la agencia todavía compara el comprobante manualmente.",
+    "La finalización del reembolso, su comprobante y el QR de devolución del turista quedan para la siguiente profundización del módulo.",
+    "La revisión de confirmación, corrección y reembolso se ejecutó contra PostgreSQL aislado; no se alteró la contraseña del encargado de la agencia de desarrollo para repetirla en su sesión real.",
+    "No se ejecutaron pruebas de carga ni inyección de fallos porque la configuración de auditoría las deshabilita.",
+    "La futura aplicación Flutter que compartirá esta API todavía no está implementada.",
+    "La compilación mantiene la advertencia de un chunk de MapLibre mayor a 500 kB; no bloquea el flujo, pero conviene medir su carga antes de publicar."
+  ]
+}

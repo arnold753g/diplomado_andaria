@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "attractions",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "Only the administrator creates attractions and assigns one manager",
+    "An attraction manager can manage multiple assigned attractions only",
+    "The public catalog exposes only active published attractions",
+    "Schedules and seasons use structured values rather than free text",
+    "Favorites are private to their tourist owner"
+  ],
+  "cases": [
+    {
+      "id": "ATTRACTIONS-001",
+      "kind": "positive",
+      "title": "admin performs create_and_assign from draft",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign"
+      },
+      "expected": "State becomes draft exactly once"
+    },
+    {
+      "id": "ATTRACTIONS-002",
+      "kind": "authorization",
+      "title": "guest cannot perform create_and_assign",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-003",
+      "kind": "authorization",
+      "title": "tourist cannot perform create_and_assign",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-004",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform create_and_assign",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-005",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform create_and_assign",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-006",
+      "kind": "authorization",
+      "title": "system cannot perform create_and_assign",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-007",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit create_and_assign from the same version",
+      "actors": [
+        "admin",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "create_and_assign",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "ATTRACTIONS-008",
+      "kind": "positive",
+      "title": "attraction_manager performs edit_attraction from draft",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction"
+      },
+      "expected": "State becomes draft exactly once"
+    },
+    {
+      "id": "ATTRACTIONS-009",
+      "kind": "positive",
+      "title": "attraction_manager performs edit_attraction from published",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "edit_attraction"
+      },
+      "expected": "State becomes draft exactly once"
+    },
+    {
+      "id": "ATTRACTIONS-010",
+      "kind": "authorization",
+      "title": "guest cannot perform edit_attraction",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-011",
+      "kind": "authorization",
+      "title": "admin cannot perform edit_attraction",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-012",
+      "kind": "authorization",
+      "title": "tourist cannot perform edit_attraction",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-013",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform edit_attraction",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-014",
+      "kind": "authorization",
+      "title": "system cannot perform edit_attraction",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-015",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit edit_attraction from the same version",
+      "actors": [
+        "attraction_manager",
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "edit_attraction",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "ATTRACTIONS-016",
+      "kind": "positive",
+      "title": "attraction_manager performs publish_attraction from draft",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction"
+      },
+      "expected": "State becomes published exactly once"
+    },
+    {
+      "id": "ATTRACTIONS-017",
+      "kind": "authorization",
+      "title": "guest cannot perform publish_attraction",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-018",
+      "kind": "authorization",
+      "title": "admin cannot perform publish_attraction",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-019",
+      "kind": "authorization",
+      "title": "tourist cannot perform publish_attraction",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-020",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform publish_attraction",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-021",
+      "kind": "authorization",
+      "title": "system cannot perform publish_attraction",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-022",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit publish_attraction from the same version",
+      "actors": [
+        "attraction_manager",
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish_attraction",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "ATTRACTIONS-023",
+      "kind": "positive",
+      "title": "tourist performs favorite from published",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite"
+      },
+      "expected": "State becomes published exactly once"
+    },
+    {
+      "id": "ATTRACTIONS-024",
+      "kind": "authorization",
+      "title": "guest cannot perform favorite",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-025",
+      "kind": "authorization",
+      "title": "admin cannot perform favorite",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-026",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform favorite",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-027",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform favorite",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-028",
+      "kind": "authorization",
+      "title": "system cannot perform favorite",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "ATTRACTIONS-029",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit favorite from the same version",
+      "actors": [
+        "tourist",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published",
+        "action": "favorite",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "ATTRACTIONS-030",
+      "kind": "concurrency_conflict",
+      "title": "create_and_assign races with edit_attraction",
+      "actors": [
+        "admin",
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "actions": [
+          "create_and_assign",
+          "edit_attraction"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "ATTRACTIONS-031",
+      "kind": "concurrency_conflict",
+      "title": "create_and_assign races with publish_attraction",
+      "actors": [
+        "admin",
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "actions": [
+          "create_and_assign",
+          "publish_attraction"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "ATTRACTIONS-032",
+      "kind": "concurrency_conflict",
+      "title": "edit_attraction races with publish_attraction",
+      "actors": [
+        "attraction_manager",
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "actions": [
+          "edit_attraction",
+          "publish_attraction"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "ATTRACTIONS-033",
+      "kind": "concurrency_conflict",
+      "title": "edit_attraction races with favorite",
+      "actors": [
+        "attraction_manager",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published",
+        "actions": [
+          "edit_attraction",
+          "favorite"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}

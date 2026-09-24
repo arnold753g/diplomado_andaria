@@ -1,0 +1,172 @@
+{
+  "run": {
+    "project": "Andaria Diplomado",
+    "module": "Cancelaciones y reembolsos",
+    "target": "http://localhost:3000",
+    "started_at": "2026-09-23"
+  },
+  "cases": [
+    {
+      "id": "REF-001",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El cierre bajo el cupo mínimo solo marca la salida para revisión",
+      "evidence": ["services.MarkMinimumReviews conserva la compra y confirmed_capacity", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-002",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La agencia debe confirmar expresamente la cancelación por cupo mínimo",
+      "evidence": ["Estado intermedio minimum_review", "POST /minimum-refund separado del proceso automático"]
+    },
+    {
+      "id": "REF-003",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La confirmación por mínimo cancela la salida e inicia los reembolsos afectados",
+      "evidence": ["Salida cancelled, capacidad liberada y compra refund_pending", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-004",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La cancelación válida del turista es automática y libera sus cupos",
+      "evidence": ["Compra confirmada pasa a refund_pending", "confirmed_capacity vuelve a cero en la misma transacción"]
+    },
+    {
+      "id": "REF-005",
+      "status": "passed",
+      "severity": "high",
+      "title": "La cancelación fuera del plazo se rechaza sin alterar la compra ni su capacidad",
+      "evidence": ["POST /cancel responde 409", "confirmed_capacity permanece en uno"]
+    },
+    {
+      "id": "REF-006",
+      "status": "passed",
+      "severity": "high",
+      "title": "El plazo de devolución es exactamente de 72 horas",
+      "evidence": ["refund_due_at - refund_requested_at = 72h", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-007",
+      "status": "passed",
+      "severity": "high",
+      "title": "El turista puede elegir un QR válido como destino de devolución",
+      "evidence": ["refund_method=qr", "QR disponible para propietario y agencia asignada"]
+    },
+    {
+      "id": "REF-008",
+      "status": "passed",
+      "severity": "high",
+      "title": "El turista puede elegir una cuenta bancaria como destino de devolución",
+      "evidence": ["Banco, titular y número persisten en refund_pending", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-009",
+      "status": "passed",
+      "severity": "high",
+      "title": "Los datos bancarios incompletos se rechazan",
+      "evidence": ["PATCH /refund-destination responde 422", "La versión y el estado permanecen intactos"]
+    },
+    {
+      "id": "REF-010",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La agencia no puede completar una devolución sin comprobante",
+      "evidence": ["PATCH /refund con comprobante vacío responde 422", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-011",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La agencia no puede completar una devolución sin destino del turista",
+      "evidence": ["PATCH /refund con comprobante válido y destino ausente responde 409", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-012",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Completar la devolución conserva comprobante, referencia, fecha y responsable",
+      "evidence": ["Estado refunded con refunded_at y refund_completed_by_user_id", "Referencia DEV-REFUND-001"]
+    },
+    {
+      "id": "REF-013",
+      "status": "passed",
+      "severity": "high",
+      "title": "Una segunda finalización con versión antigua se rechaza",
+      "evidence": ["Segundo PATCH /refund responde 409", "Control de versión optimista"]
+    },
+    {
+      "id": "REF-014",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Solo el turista propietario puede cancelar o cambiar su destino",
+      "evidence": ["Visitante 401, roles no turistas 403 y otro turista 404", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-015",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Solo la agencia asignada puede confirmar el mínimo o completar el reembolso",
+      "evidence": ["Visitante 401, roles ajenos 403 y otra agencia 404", "backend/internal/httpapi/purchase_integration_test.go"]
+    },
+    {
+      "id": "REF-016",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El QR de devolución queda aislado entre turistas y agencias",
+      "evidence": ["Propietario y agencia asignada reciben 200", "Otro turista y otra agencia reciben 404"]
+    },
+    {
+      "id": "REF-017",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El comprobante de devolución queda aislado entre turistas y agencias",
+      "evidence": ["Propietario y agencia asignada reciben 200", "Otro turista y otra agencia reciben 404"]
+    },
+    {
+      "id": "REF-018",
+      "status": "passed",
+      "severity": "high",
+      "title": "La base de datos restringe estados, destino, vencimiento y tamaño de imágenes",
+      "evidence": ["backend/internal/database/migrations/000012_refunds.sql", "Migración aplicada correctamente en PostgreSQL de desarrollo"]
+    },
+    {
+      "id": "REF-019",
+      "status": "passed",
+      "severity": "medium",
+      "title": "La bandeja del turista presenta política, destino, plazo y comprobante final",
+      "evidence": ["frontend/pages/app/purchases/index.vue", "npm run typecheck y npm run build"]
+    },
+    {
+      "id": "REF-020",
+      "status": "passed",
+      "severity": "medium",
+      "title": "La bandeja de la agencia presenta vencidos, destino y registro del comprobante",
+      "evidence": ["frontend/pages/agency/purchases/index.vue", "Estados refund_pending y refunded disponibles en el filtro"]
+    },
+    {
+      "id": "REF-021",
+      "status": "passed",
+      "severity": "medium",
+      "title": "Las etiquetas distinguen QR, cuenta bancaria y destino pendiente",
+      "evidence": ["frontend/tests/purchase.test.ts", "npm test: 16/16"]
+    },
+    {
+      "id": "REF-022",
+      "status": "passed",
+      "severity": "high",
+      "title": "La batería técnica completa y la recarga pública finalizan correctamente",
+      "evidence": ["go test ./... y go vet ./...", "npm test, typecheck y build", "Recarga funcional de /packages/4 después del reinicio"]
+    }
+  ],
+  "untested_risks": [
+    "El movimiento de dinero ocurre fuera de Andaria; el sistema registra la devolución, pero no verifica la operación contra un banco.",
+    "Todavía no se envían recordatorios por correo cuando se acerca o vence el plazo de 72 horas.",
+    "La interfaz autenticada de cancelación y devolución quedó cubierta por tipos, compilación, lógica y API; en este ciclo la revisión visual del navegador se realizó como visitante.",
+    "No se ejecutaron pruebas de carga ni inyección de fallos porque la configuración de auditoría las deshabilita.",
+    "La futura aplicación Flutter que compartirá esta API todavía no está implementada.",
+    "La compilación conserva la advertencia de un bloque de MapLibre mayor a 500 kB; no bloquea este flujo."
+  ]
+}

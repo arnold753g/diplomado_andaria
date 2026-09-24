@@ -1,0 +1,455 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "packages",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "Only published packages from active and published agencies appear in the public catalog",
+    "A tourist selects a generated departure identifier and never submits a free-form date",
+    "Available capacity excludes held and confirmed capacity while only confirmed capacity counts toward the minimum",
+    "Purchase availability requires an open window, a future departure, a permitted state, and remaining capacity",
+    "Only the assigned agency manager can change or cancel a departure",
+    "Manual departure exceptions survive later schedule regeneration"
+  ],
+  "cases": [
+    {
+      "id": "PACKAGES-001",
+      "kind": "positive",
+      "title": "agency_manager performs publish from draft",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-002",
+      "kind": "authorization",
+      "title": "guest cannot perform publish",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-003",
+      "kind": "authorization",
+      "title": "admin cannot perform publish",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-004",
+      "kind": "authorization",
+      "title": "tourist cannot perform publish",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-005",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform publish",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-006",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit publish from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "draft",
+        "action": "publish",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PACKAGES-007",
+      "kind": "positive",
+      "title": "guest performs browse from published_bookable",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-008",
+      "kind": "positive",
+      "title": "guest performs browse from published_unavailable",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "published_unavailable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-009",
+      "kind": "positive",
+      "title": "admin performs browse from published_bookable",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-010",
+      "kind": "positive",
+      "title": "admin performs browse from published_unavailable",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "published_unavailable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-011",
+      "kind": "positive",
+      "title": "tourist performs browse from published_bookable",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-012",
+      "kind": "positive",
+      "title": "tourist performs browse from published_unavailable",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published_unavailable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-013",
+      "kind": "positive",
+      "title": "agency_manager performs browse from published_bookable",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-014",
+      "kind": "positive",
+      "title": "agency_manager performs browse from published_unavailable",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_unavailable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-015",
+      "kind": "positive",
+      "title": "attraction_manager performs browse from published_bookable",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-016",
+      "kind": "positive",
+      "title": "attraction_manager performs browse from published_unavailable",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "published_unavailable",
+        "action": "browse"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-017",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit browse from the same version",
+      "actors": [
+        "guest",
+        "guest"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "browse",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PACKAGES-018",
+      "kind": "positive",
+      "title": "agency_manager performs adjust_departure from published_bookable",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "adjust_departure"
+      },
+      "expected": "State becomes published_bookable exactly once"
+    },
+    {
+      "id": "PACKAGES-019",
+      "kind": "authorization",
+      "title": "guest cannot perform adjust_departure",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "adjust_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-020",
+      "kind": "authorization",
+      "title": "admin cannot perform adjust_departure",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "adjust_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-021",
+      "kind": "authorization",
+      "title": "tourist cannot perform adjust_departure",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "adjust_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-022",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform adjust_departure",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "adjust_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-023",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit adjust_departure from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "adjust_departure",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PACKAGES-024",
+      "kind": "positive",
+      "title": "agency_manager performs cancel_departure from published_bookable",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "cancel_departure"
+      },
+      "expected": "State becomes published_unavailable exactly once"
+    },
+    {
+      "id": "PACKAGES-025",
+      "kind": "authorization",
+      "title": "guest cannot perform cancel_departure",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "cancel_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-026",
+      "kind": "authorization",
+      "title": "admin cannot perform cancel_departure",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "cancel_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-027",
+      "kind": "authorization",
+      "title": "tourist cannot perform cancel_departure",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "cancel_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-028",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform cancel_departure",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "cancel_departure"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "PACKAGES-029",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit cancel_departure from the same version",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "action": "cancel_departure",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "PACKAGES-030",
+      "kind": "concurrency_conflict",
+      "title": "browse races with adjust_departure",
+      "actors": [
+        "guest",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "actions": [
+          "browse",
+          "adjust_departure"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "PACKAGES-031",
+      "kind": "concurrency_conflict",
+      "title": "browse races with cancel_departure",
+      "actors": [
+        "guest",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "actions": [
+          "browse",
+          "cancel_departure"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    },
+    {
+      "id": "PACKAGES-032",
+      "kind": "concurrency_conflict",
+      "title": "adjust_departure races with cancel_departure",
+      "actors": [
+        "agency_manager",
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "published_bookable",
+        "actions": [
+          "adjust_departure",
+          "cancel_departure"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}

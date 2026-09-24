@@ -1,0 +1,233 @@
+{
+  "run": {
+    "project": "Andaria Diplomado",
+    "module": "Auditoria integral y preparacion de produccion",
+    "target": "http://localhost:3000",
+    "started_at": "2026-09-25"
+  },
+  "cases": [
+    {
+      "id": "REL-001",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Registro, login, cierre de sesion y revocacion conservan el aislamiento de cuentas y roles",
+      "evidence": [
+        "backend/internal/httpapi/module_integration_test.go",
+        "go test ./... -count=1 con PostgreSQL aislado"
+      ]
+    },
+    {
+      "id": "REL-002",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Las operaciones administrativas concurrentes protegen al ultimo administrador activo",
+      "evidence": [
+        "backend/internal/httpapi/admin_integration_test.go",
+        "Pruebas de integracion concurrentes con PostgreSQL"
+      ]
+    },
+    {
+      "id": "REL-003",
+      "status": "passed",
+      "severity": "high",
+      "title": "El flujo Google valida estado, identidad y vinculacion mediante proveedor simulado",
+      "evidence": [
+        "backend/internal/httpapi/module_integration_test.go",
+        "Pruebas HTTP con proveedor OAuth simulado"
+      ]
+    },
+    {
+      "id": "REL-004",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El administrador crea y asigna agencias sin poder editar sus politicas comerciales",
+      "evidence": [
+        "backend/internal/httpapi/agency_integration_test.go",
+        "frontend/components/agencies/AgencyEditor.vue"
+      ]
+    },
+    {
+      "id": "REL-005",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Cada encargado de agencia solo administra su agencia, pagos y politicas",
+      "evidence": [
+        "backend/internal/httpapi/agency_integration_test.go",
+        "Pruebas de propiedad y acceso cruzado"
+      ]
+    },
+    {
+      "id": "REL-006",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Atracciones, asignaciones, catalogo y favoritos respetan publicacion y propiedad",
+      "evidence": [
+        "backend/internal/httpapi/attraction_integration_test.go",
+        "backend/internal/handlers/attraction_image_test.go"
+      ]
+    },
+    {
+      "id": "REL-007",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El modulo de paquetes conserva 22 casos funcionales aprobados",
+      "evidence": [
+        ".medusa-auditor/results/packages-report.md",
+        "22 casos aprobados, sin fallas registradas"
+      ]
+    },
+    {
+      "id": "REL-008",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El modulo de compras conserva 28 casos funcionales aprobados",
+      "evidence": [
+        ".medusa-auditor/results/purchases-report.md",
+        "28 casos aprobados, sin fallas registradas"
+      ]
+    },
+    {
+      "id": "REL-009",
+      "status": "passed",
+      "severity": "critical",
+      "title": "El modulo de cancelaciones y reembolsos conserva 22 casos funcionales aprobados",
+      "evidence": [
+        ".medusa-auditor/results/refunds-report.md",
+        "22 casos aprobados, sin fallas registradas"
+      ]
+    },
+    {
+      "id": "REL-010",
+      "status": "passed",
+      "severity": "high",
+      "title": "Los paneles muestran metricas y acciones propias de cada rol",
+      "evidence": [
+        "backend/internal/httpapi/dashboard_integration_test.go",
+        "frontend/pages/admin/index.vue",
+        "frontend/pages/app/index.vue"
+      ]
+    },
+    {
+      "id": "REL-011",
+      "status": "passed",
+      "severity": "high",
+      "title": "Portada, atracciones, paquetes, login y registro cargan mediante interfaz real",
+      "evidence": [
+        "Revision visual en navegador de http://localhost:3000",
+        "Rutas publicas con encabezado y contenido esperado"
+      ]
+    },
+    {
+      "id": "REL-012",
+      "status": "passed",
+      "severity": "high",
+      "title": "El catalogo de paquetes mantiene uso correcto en viewport movil de 390 por 844",
+      "evidence": [
+        "Revision visual y accesible del formulario y tarjetas en navegador"
+      ]
+    },
+    {
+      "id": "REL-013",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Las rutas privadas redirigen durante SSR sin desajustes de hidratacion",
+      "evidence": [
+        "Ingreso directo a /app redirige a /login?redirect=/app",
+        "Cero mensajes nuevos de hydration mismatch despues de la correccion",
+        "frontend/stores/auth.ts y frontend/middleware"
+      ]
+    },
+    {
+      "id": "REL-014",
+      "status": "passed",
+      "severity": "critical",
+      "title": "Una sesion autenticada se reconoce en SSR y conserva la ruta privada solicitada",
+      "evidence": [
+        "Login HTTP 200, cookie HttpOnly con Path=/",
+        "Solicitud directa a /app responde 200 y conserva /app",
+        "Sesion de prueba revocada al finalizar"
+      ]
+    },
+    {
+      "id": "REL-015",
+      "status": "passed",
+      "severity": "high",
+      "title": "Las respuestas incluyen cabeceras de seguridad y la API rechaza acceso administrativo anonimo",
+      "evidence": [
+        "GET /health = 200 con CSP, nosniff, DENY, Referrer-Policy y Permissions-Policy",
+        "GET /api/v1/admin/dashboard sin sesion = 401"
+      ]
+    },
+    {
+      "id": "REL-016",
+      "status": "passed",
+      "severity": "high",
+      "title": "Las dependencias de produccion del frontend no presentan vulnerabilidades conocidas",
+      "evidence": [
+        "npm audit --omit=dev: found 0 vulnerabilities",
+        "frontend/package-lock.json actualizado"
+      ]
+    },
+    {
+      "id": "REL-017",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La configuracion de produccion exige HTTPS y secretos de base de datos no triviales",
+      "evidence": [
+        "backend/internal/config/config_test.go",
+        "docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet"
+      ]
+    },
+    {
+      "id": "REL-018",
+      "status": "passed",
+      "severity": "high",
+      "title": "El proxy admite comprobantes de 5 MB y el backend conserva salida para Google OAuth",
+      "evidence": [
+        "nginx/default.conf: client_max_body_size 8m para compras",
+        "docker-compose.prod.yml: red starter_egress exclusiva del backend"
+      ]
+    },
+    {
+      "id": "REL-019",
+      "status": "passed",
+      "severity": "critical",
+      "title": "La suite tecnica completa, tipos y compilacion de produccion finalizan correctamente",
+      "evidence": [
+        "go test ./... -count=1 aprobado",
+        "go vet ./... aprobado",
+        "npm test: 16 de 16 aprobadas",
+        "npm run typecheck aprobado",
+        "npm run build aprobado"
+      ]
+    },
+    {
+      "id": "REL-020",
+      "status": "blocked",
+      "severity": "high",
+      "title": "La construccion real de imagenes y validacion de Nginx en contenedor requieren Docker Engine",
+      "evidence": [
+        "Docker Desktop Linux engine no disponible en el host",
+        "La composicion si fue validada de forma estatica"
+      ]
+    },
+    {
+      "id": "REL-021",
+      "status": "not_run",
+      "severity": "critical",
+      "title": "HTTPS, DNS y Google OAuth reales se verificaran en el servidor definitivo",
+      "evidence": [
+        "Dominio y credenciales del proveedor todavia pendientes"
+      ]
+    }
+  ],
+  "untested_risks": [
+    "No se probo aun el dominio real, su certificado TLS ni la renovacion automatica.",
+    "La construccion de contenedores y nginx -t quedaron bloqueados porque Docker Engine no esta disponible en este equipo.",
+    "Google OAuth se valido con un proveedor simulado; falta la credencial y redireccion del dominio definitivo.",
+    "No se realizaron pruebas de carga ni inyeccion de fallos para evitar afectar el entorno local compartido.",
+    "El mapa genera un bloque JavaScript superior a 500 kB; funciona, pero conviene optimizar su carga antes de crecer el trafico.",
+    "Los pagos y reembolsos dependen de transferencias externas y conservan una revision humana.",
+    "La aplicacion movil Flutter que compartira el backend pertenece a una etapa posterior."
+  ]
+}

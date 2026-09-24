@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "users_access",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "Public registration always creates a tourist",
+    "Sessions use an HttpOnly cookie and unsafe requests require CSRF",
+    "Inactive users and expired sessions cannot access protected routes",
+    "Only an administrator can create staff accounts or change roles",
+    "Changing a password, role, or status revokes affected sessions"
+  ],
+  "cases": [
+    {
+      "id": "USERS_ACCESS-001",
+      "kind": "positive",
+      "title": "guest performs register from anonymous",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-002",
+      "kind": "authorization",
+      "title": "admin cannot perform register",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-003",
+      "kind": "authorization",
+      "title": "tourist cannot perform register",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-004",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform register",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-005",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform register",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-006",
+      "kind": "authorization",
+      "title": "system cannot perform register",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-007",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit register from the same version",
+      "actors": [
+        "guest",
+        "guest"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "register",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "USERS_ACCESS-008",
+      "kind": "positive",
+      "title": "admin performs login from anonymous",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-009",
+      "kind": "positive",
+      "title": "admin performs login from expired",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "expired",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-010",
+      "kind": "positive",
+      "title": "tourist performs login from anonymous",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-011",
+      "kind": "positive",
+      "title": "tourist performs login from expired",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "expired",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-012",
+      "kind": "positive",
+      "title": "agency_manager performs login from anonymous",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-013",
+      "kind": "positive",
+      "title": "agency_manager performs login from expired",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "expired",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-014",
+      "kind": "positive",
+      "title": "attraction_manager performs login from anonymous",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-015",
+      "kind": "positive",
+      "title": "attraction_manager performs login from expired",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "expired",
+        "action": "login"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-016",
+      "kind": "authorization",
+      "title": "guest cannot perform login",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-017",
+      "kind": "authorization",
+      "title": "system cannot perform login",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-018",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit login from the same version",
+      "actors": [
+        "admin",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "action": "login",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "USERS_ACCESS-019",
+      "kind": "positive",
+      "title": "admin performs update_role from authenticated",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role"
+      },
+      "expected": "State becomes authenticated exactly once"
+    },
+    {
+      "id": "USERS_ACCESS-020",
+      "kind": "authorization",
+      "title": "guest cannot perform update_role",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-021",
+      "kind": "authorization",
+      "title": "tourist cannot perform update_role",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-022",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform update_role",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-023",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform update_role",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-024",
+      "kind": "authorization",
+      "title": "system cannot perform update_role",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "USERS_ACCESS-025",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit update_role from the same version",
+      "actors": [
+        "admin",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "authenticated",
+        "action": "update_role",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "USERS_ACCESS-026",
+      "kind": "concurrency_conflict",
+      "title": "register races with login",
+      "actors": [
+        "guest",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "anonymous",
+        "actions": [
+          "register",
+          "login"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}

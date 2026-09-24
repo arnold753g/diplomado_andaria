@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "project": "Andaria Diplomado",
+  "module": "home_dashboards",
+  "base_url": "http://localhost:3000",
+  "invariants": [
+    "The public home never requires a session",
+    "Home content comes only from published and currently available catalog data",
+    "Personal dashboard counters are scoped to the authenticated tourist or manager",
+    "The administrator dashboard contains global counts but no personal dashboard",
+    "Protected dashboard routes reject anonymous and cross-role access"
+  ],
+  "cases": [
+    {
+      "id": "HOME_DASHBOARDS-001",
+      "kind": "positive",
+      "title": "guest performs browse_home from public_home",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home"
+      },
+      "expected": "State becomes public_home exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-002",
+      "kind": "positive",
+      "title": "admin performs browse_home from public_home",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home"
+      },
+      "expected": "State becomes public_home exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-003",
+      "kind": "positive",
+      "title": "tourist performs browse_home from public_home",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home"
+      },
+      "expected": "State becomes public_home exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-004",
+      "kind": "positive",
+      "title": "agency_manager performs browse_home from public_home",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home"
+      },
+      "expected": "State becomes public_home exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-005",
+      "kind": "positive",
+      "title": "attraction_manager performs browse_home from public_home",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home"
+      },
+      "expected": "State becomes public_home exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-006",
+      "kind": "authorization",
+      "title": "system cannot perform browse_home",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-007",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit browse_home from the same version",
+      "actors": [
+        "guest",
+        "guest"
+      ],
+      "preconditions": {
+        "state": "public_home",
+        "action": "browse_home",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "HOME_DASHBOARDS-008",
+      "kind": "positive",
+      "title": "tourist performs view_personal_dashboard from role_dashboard",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard"
+      },
+      "expected": "State becomes role_dashboard exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-009",
+      "kind": "positive",
+      "title": "agency_manager performs view_personal_dashboard from role_dashboard",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard"
+      },
+      "expected": "State becomes role_dashboard exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-010",
+      "kind": "positive",
+      "title": "attraction_manager performs view_personal_dashboard from role_dashboard",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard"
+      },
+      "expected": "State becomes role_dashboard exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-011",
+      "kind": "authorization",
+      "title": "guest cannot perform view_personal_dashboard",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-012",
+      "kind": "authorization",
+      "title": "admin cannot perform view_personal_dashboard",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-013",
+      "kind": "authorization",
+      "title": "system cannot perform view_personal_dashboard",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-014",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit view_personal_dashboard from the same version",
+      "actors": [
+        "tourist",
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_personal_dashboard",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "HOME_DASHBOARDS-015",
+      "kind": "positive",
+      "title": "admin performs view_admin_dashboard from role_dashboard",
+      "actors": [
+        "admin"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard"
+      },
+      "expected": "State becomes role_dashboard exactly once"
+    },
+    {
+      "id": "HOME_DASHBOARDS-016",
+      "kind": "authorization",
+      "title": "guest cannot perform view_admin_dashboard",
+      "actors": [
+        "guest"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-017",
+      "kind": "authorization",
+      "title": "tourist cannot perform view_admin_dashboard",
+      "actors": [
+        "tourist"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-018",
+      "kind": "authorization",
+      "title": "agency_manager cannot perform view_admin_dashboard",
+      "actors": [
+        "agency_manager"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-019",
+      "kind": "authorization",
+      "title": "attraction_manager cannot perform view_admin_dashboard",
+      "actors": [
+        "attraction_manager"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-020",
+      "kind": "authorization",
+      "title": "system cannot perform view_admin_dashboard",
+      "actors": [
+        "system"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard"
+      },
+      "expected": "UI prevents the action and the server rejects a direct request"
+    },
+    {
+      "id": "HOME_DASHBOARDS-021",
+      "kind": "concurrency_duplicate",
+      "title": "Two actors submit view_admin_dashboard from the same version",
+      "actors": [
+        "admin",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "action": "view_admin_dashboard",
+        "barrier": true
+      },
+      "expected": "The business effect is applied at most once or the documented conflict rule is enforced"
+    },
+    {
+      "id": "HOME_DASHBOARDS-022",
+      "kind": "concurrency_conflict",
+      "title": "view_personal_dashboard races with view_admin_dashboard",
+      "actors": [
+        "tourist",
+        "admin"
+      ],
+      "preconditions": {
+        "state": "role_dashboard",
+        "actions": [
+          "view_personal_dashboard",
+          "view_admin_dashboard"
+        ],
+        "barrier": true
+      },
+      "expected": "Final state satisfies a documented transition and no update is silently lost"
+    }
+  ]
+}
