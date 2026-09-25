@@ -1,0 +1,4 @@
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/andaria_lime"/>
+    <foreground android:drawable="@drawable/andaria_icon"/>
+</adaptive-icon>

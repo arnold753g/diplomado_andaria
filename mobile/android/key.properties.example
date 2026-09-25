@@ -1,0 +1,4 @@
+storeFile=C:/ruta/local/andaria-release.jks
+storePassword=REEMPLAZAR_LOCALMENTE
+keyAlias=andaria
+keyPassword=REEMPLAZAR_LOCALMENTE

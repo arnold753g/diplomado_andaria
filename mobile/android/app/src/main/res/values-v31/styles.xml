@@ -1,0 +1,8 @@
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@android:color/white</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/andaria_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/andaria_lime</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

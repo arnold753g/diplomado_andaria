@@ -1,0 +1,17 @@
+{
+  "name": "Andaria",
+  "short_name": "Andaria",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "description": "Experiencias y lugares de Bolivia para turistas.",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
