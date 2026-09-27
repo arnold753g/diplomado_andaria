@@ -49,6 +49,8 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	publicAuth.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
 	publicAuth.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 	publicAuth.HandleFunc("/options", authHandler.Options).Methods(http.MethodGet)
+	publicAuth.HandleFunc("/mobile/options", authHandler.MobileOptions).Methods(http.MethodGet)
+	publicAuth.HandleFunc("/google/mobile", authHandler.GoogleMobileLogin).Methods(http.MethodPost)
 	publicAuth.HandleFunc("/google/start", authHandler.GoogleStart).Methods(http.MethodPost)
 	// Google's top-level redirect carries no application Origin; OAuth state binds the browser.
 	publicAuth.HandleFunc("/google/callback", authHandler.GoogleCallback).Methods(http.MethodGet)

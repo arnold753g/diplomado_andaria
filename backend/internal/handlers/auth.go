@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -18,11 +19,12 @@ import (
 )
 
 type AuthHandler struct {
-	db           *gorm.DB
-	cfg          config.Config
-	validate     *validator.Validate
-	dummyHash    string
-	googleClient *http.Client
+	db                   *gorm.DB
+	cfg                  config.Config
+	validate             *validator.Validate
+	dummyHash            string
+	googleClient         *http.Client
+	googleMobileVerifier func(context.Context, string, string) (googleIdentity, error)
 }
 
 func NewAuthHandler(db *gorm.DB, cfg config.Config) (*AuthHandler, error) {
