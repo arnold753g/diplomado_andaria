@@ -40,12 +40,13 @@ type purchaseMinorInput struct {
 }
 
 type purchaseCreateInput struct {
-	DepartureID    uint64               `json:"departure_id"`
-	PaymentMethod  string               `json:"payment_method"`
-	NationalAdults int                  `json:"national_adults"`
-	ForeignAdults  int                  `json:"foreign_adults"`
-	Minors         []purchaseMinorInput `json:"minors"`
-	PaymentProof   string               `json:"payment_proof"`
+	DepartureID        uint64               `json:"departure_id"`
+	PaymentMethod      string               `json:"payment_method"`
+	NationalAdults     int                  `json:"national_adults"`
+	ForeignAdults      int                  `json:"foreign_adults"`
+	Minors             []purchaseMinorInput `json:"minors"`
+	PaymentProof       string               `json:"payment_proof"`
+	ExpectedTotalCents *int                 `json:"expected_total_cents"`
 }
 
 type purchaseReviewInput struct {
@@ -82,6 +83,8 @@ type refundCompleteInput struct {
 type purchasePaymentOptions struct {
 	PackageID           uint64   `json:"package_id"`
 	AgencyName          string   `json:"agency_name"`
+	AgencyPhone         string   `json:"agency_phone,omitempty"`
+	AgencyEmail         string   `json:"agency_email,omitempty"`
 	MinimumPayingAge    int      `json:"minimum_paying_age"`
 	Methods             []string `json:"methods"`
 	BankName            string   `json:"bank_name"`
@@ -95,6 +98,8 @@ type purchaseResponse struct {
 	models.TourPackagePurchase
 	PackageName          string     `json:"package_name"`
 	AgencyName           string     `json:"agency_name"`
+	AgencyPhone          string     `json:"agency_phone,omitempty"`
+	AgencyEmail          string     `json:"agency_email,omitempty"`
 	DepartureStart       time.Time  `json:"departure_start"`
 	MeetingPoint         string     `json:"meeting_point"`
 	HasProof             bool       `json:"has_proof"`
@@ -110,7 +115,7 @@ func purchaseQuery(db *gorm.DB) *gorm.DB {
 		Preload("Package", func(tx *gorm.DB) *gorm.DB {
 			return tx.Select("id", "name", "cancellation_allowed", "cancellation_notice_hours")
 		}).
-		Preload("Agency", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "name") }).
+		Preload("Agency", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "name", "phone", "email") }).
 		Preload("Departure", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "starts_at", "meeting_point") })
 }
 
@@ -131,6 +136,8 @@ func purchaseView(item models.TourPackagePurchase) purchaseResponse {
 	}
 	if item.Agency != nil {
 		view.AgencyName = item.Agency.Name
+		view.AgencyPhone = item.Agency.Phone
+		view.AgencyEmail = item.Agency.Email
 	}
 	if item.Departure != nil {
 		view.DepartureStart = item.Departure.StartsAt
@@ -171,6 +178,7 @@ func (h *PurchaseHandler) PaymentOptions(w http.ResponseWriter, r *http.Request)
 	}
 	options := purchasePaymentOptions{
 		PackageID: item.ID, AgencyName: item.Agency.Name, MinimumPayingAge: item.Agency.MinimumPayingAge,
+		AgencyPhone: item.Agency.Phone, AgencyEmail: item.Agency.Email,
 		Methods: methods, BankName: item.Agency.BankName, AccountHolder: item.Agency.AccountHolder,
 		AccountNumber: item.Agency.AccountNumber, PaymentInstructions: item.Agency.PaymentInstructions,
 	}
@@ -188,6 +196,13 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	input.PaymentMethod = strings.TrimSpace(input.PaymentMethod)
 	fields := map[string]string{}
+	requestKey := strings.TrimSpace(r.Header.Get("Idempotency-Key"))
+	if requestKey != "" && !purchaseRequestKeyPattern.MatchString(requestKey) {
+		fields["idempotency_key"] = "La clave de solicitud debe tener entre 16 y 128 caracteres alfanuméricos, guiones o guiones bajos"
+	}
+	if input.ExpectedTotalCents != nil && *input.ExpectedTotalCents <= 0 {
+		fields["expected_total_cents"] = "El total esperado debe ser positivo"
+	}
 	if input.DepartureID == 0 {
 		fields["departure_id"] = "Selecciona una salida"
 	}
@@ -216,7 +231,14 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var purchase models.TourPackagePurchase
+	payloadHash := purchasePayloadHash(input)
+	replayed := false
 	err = h.db.Transaction(func(tx *gorm.DB) error {
+		var replayErr error
+		replayed, replayErr = replayPurchaseRequest(tx, principal.User.ID, requestKey, payloadHash, &purchase)
+		if replayErr != nil || replayed {
+			return replayErr
+		}
 		var departure models.TourPackageDeparture
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&departure, input.DepartureID).Error; err != nil {
 			return err
@@ -254,6 +276,9 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 		if total <= 0 {
 			return errPurchaseUnavailable
 		}
+		if input.ExpectedTotalCents != nil && total != *input.ExpectedTotalCents {
+			return errPurchasePriceChanged
+		}
 		reference, err := purchaseReference()
 		if err != nil {
 			return err
@@ -273,7 +298,14 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		departure.HeldCapacity += capacity
 		departure.Version++
-		return tx.Save(&departure).Error
+		if err := tx.Save(&departure).Error; err != nil {
+			return err
+		}
+		if requestKey != "" {
+			record := purchaseRequestRecord{TouristID: principal.User.ID, RequestKey: requestKey, PayloadHash: payloadHash, PurchaseID: purchase.ID}
+			return tx.Table("purchase_requests").Create(&record).Error
+		}
+		return nil
 	})
 	if err != nil {
 		purchaseError(w, r, err)
@@ -283,7 +315,11 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 		purchaseError(w, r, err)
 		return
 	}
-	respond.JSON(w, http.StatusCreated, purchaseView(purchase), "Compra registrada y pago enviado a revisión")
+	status := http.StatusCreated
+	if replayed {
+		status = http.StatusOK
+	}
+	respond.JSON(w, status, purchaseView(purchase), "Compra registrada y pago enviado a revisión")
 }
 
 func (h *PurchaseHandler) ListMine(w http.ResponseWriter, r *http.Request) {
@@ -818,6 +854,10 @@ func ownAgencyForPurchase(r *http.Request, db *gorm.DB) (models.Agency, error) {
 
 func purchaseError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, errPurchaseRequestConflict):
+		respond.Error(w, r, http.StatusConflict, "PURCHASE_REQUEST_CONFLICT", "Esta clave ya fue usada para otra compra. Revisa tus compras antes de continuar", nil)
+	case errors.Is(err, errPurchasePriceChanged):
+		respond.Error(w, r, http.StatusConflict, "PURCHASE_PRICE_CHANGED", "El precio cambió. Regresa al paquete y revisa el total antes de enviar la compra", nil)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		respond.Error(w, r, http.StatusNotFound, "PURCHASE_NOT_FOUND", "La compra, salida o paquete no existe", nil)
 	case errors.Is(err, errPurchaseUnavailable):
