@@ -12,6 +12,7 @@ Browser
 ```
 
 - `frontend/`: interfaz SSR, layouts `/app` y `/admin`, guards cliente y tema centralizado.
+- `mobile/`: app Android Flutter + Dart para turistas, con API compartida. Consulta [instalación y pruebas](mobile/README.md) y [contrato móvil](docs/app-android.md).
 - `backend/cmd/api`: servidor HTTP.
 - `backend/cmd/migrate`: migraciones SQL versionadas e idempotentes.
 - `backend/cmd/seed`: dos usuarios configurables, solo para desarrollo/pruebas.

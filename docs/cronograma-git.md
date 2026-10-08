@@ -94,3 +94,35 @@ Verificación de esta sesión: pruebas Go y go vet aprobados; 16 pruebas fronten
 
 
 La compilación de producción del frontend también fue aprobada en esta sesión, con avisos de tamaño del mapa y de dependencias obsoletas que no impidieron generar la aplicación.
+
+
+## Entrega de la app Android: 25/09 al 08/10/2026
+
+Lote preparado el 08/10/2026 desde el árbol de trabajo existente. Las fechas asignadas organizan la incorporación del código y no acreditan desarrollo ni publicaciones en esos días. Se conserva el historial publicado hasta el 24/09 y se agregan 14 commits, uno por fecha. Esta sección actualiza el estado anterior que describía Flutter como pendiente.
+
+La separación sigue las dependencias: estructura, núcleo móvil, contratos de API, componentes compartidos, pantallas y pruebas. Las primeras entregas móviles son parciales; el conjunto ejecutable queda integrado con catálogo, navegación y punto de entrada el 03/10. Las mejoras de aislamiento entre cuentas, reintentos y precios ya vienen integradas en sus archivos; no se inventan versiones defectuosas anteriores para presentarlas como correcciones separadas.
+
+| Fecha asignada (Bolivia) | Commit |
+| --- | --- |
+| 2026-09-25 11:20 | `chore: incorpora la estructura Flutter y la configuracion Android` |
+| 2026-09-26 16:10 | `feat: agrega el cliente API movil y las reglas de sesion y precios` |
+| 2026-09-27 10:45 | `feat: habilita autenticacion Google para turistas desde Android` |
+| 2026-09-28 15:35 | `fix: evita compras duplicadas y rechaza precios desactualizados` |
+| 2026-09-29 09:50 | `feat: agrega galeria, comprobantes y contacto con la agencia` |
+| 2026-09-30 17:15 | `feat: implementa acceso, registro y perfil del turista en la app` |
+| 2026-10-01 11:30 | `feat: incorpora seguimiento de compras, cancelaciones y reembolsos` |
+| 2026-10-02 16:40 | `feat: implementa la compra movil con revision de viajeros y comprobante` |
+| 2026-10-03 10:25 | `feat: integra catalogo, favoritos y navegacion principal de Andaria` |
+| 2026-10-04 15:10 | `test: verifica sesiones, cuentas, precios y experiencia movil` |
+| 2026-10-05 12:40 | `test: agrega recorridos Android con datos aislados del backend` |
+| 2026-10-06 17:05 | `ci: automatiza verificaciones de Android, API y web` |
+| 2026-10-07 11:55 | `docs: conserva la auditoria tecnica previa a la aplicacion movil` |
+| 2026-10-08 00:50 | `docs: documenta la app Android, su validacion y los limites de entrega` |
+
+La auditoría técnica del 28/09 describe el corte web anterior y se conserva como documento histórico. El estado actual y las comprobaciones previas de emulador figuran en `docs/app-android.md` y `mobile/README.md`.
+
+Pendientes externos: Google real con cliente y firma Android configurados, teclado y selector de fotos en teléfono físico, firma de distribución y publicación en tienda. Un APK debug verificado no constituye una publicación de producción. Las claves de firma, `local.properties`, entornos, APK, cachés y documentación privada del diplomado permanecen excluidos.
+
+
+
+Verificación del lote el 08/10/2026: Flutter analyze sin incidencias; formato de 39 archivos sin cambios; 31 pruebas Flutter aprobadas; APK debug compilado correctamente; go test ./... -count=1 y go vet ./... aprobados; 16 pruebas web y comprobación de tipos aprobadas. No se repitieron los recorridos de emulador ni las integraciones con PostgreSQL, pues TEST_DATABASE_DSN no estaba configurada. Las versiones de acciones y Flutter del workflow existen en sus repositorios oficiales; su ejecución remota queda pendiente de comprobar después del push.
