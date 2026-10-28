@@ -45,7 +45,9 @@ Al guardar la programación se generan salidas concretas futuras con cupos, vent
 
 El encargado puede ajustar individualmente una salida futura: hora y punto de encuentro, instrucciones, cupos y cierre de compras. La salida queda marcada como excepción y una regeneración posterior no sobrescribe esos valores. También puede cancelarla con un motivo obligatorio; se conserva la salida, el responsable, la fecha y la razón para mantener trazabilidad. La cancelación mueve las compras afectadas a reembolso pendiente y libera sus cupos retenidos o confirmados.
 
-La máxima anticipación, entre 1 y 365 días, determina cuándo se abre la compra. El cierre se configura en horas antes de la salida. El módulo de compras solo acepta el identificador de una salida y verifica que la hora actual esté entre ambos límites.
+En salida única, la compra está disponible desde la publicación y no se solicita una máxima anticipación. El cierre sigue configurándose en horas antes de la salida: una salida el 30 de octubre a las 08:00 con cierre de 24 horas deja de aceptar compras el 29 de octubre a las 08:00. Para las frecuencias diaria y por días específicos, la máxima anticipación, entre 1 y 365 días, determina cuándo se abre la compra de cada salida. El módulo de compras solo acepta el identificador de una salida y verifica que la hora actual esté entre ambos límites.
+
+La vista previa compara fechas de calendario e incluye ambos extremos del intervalo, independientemente de si el calendario entrega las fechas a medianoche o la API las carga al mediodía. La API normaliza la fecha final de una salida única a su fecha inicial y conserva un valor interno compatible con la columna de anticipación existente, sin utilizarlo como restricción de venta. No se modifica el esquema ni se alteran las salidas protegidas por cupos o ajustes individuales.
 
 ## Experiencia del turista
 
@@ -64,5 +66,5 @@ El catálogo utiliza `departure_id` como unidad de disponibilidad y enlaza al fl
 - Prueba de concurrencia sincronizada: dos cambios sobre la misma versión producen una actualización exitosa y un conflicto `409`.
 - Pruebas de catálogo público para agencias no publicadas o inactivas, estados ocultos, filtros inválidos, fotografías, atracciones retiradas y cálculo de disponibilidad.
 - Navegación por rol y presentación de importes, duración y estados cubiertas por pruebas frontend.
-- `go test ./...`, `go vet ./...`, 15 pruebas frontend, comprobación de tipos y compilación de producción completadas correctamente.
+- `go test ./...` con PostgreSQL local, `go vet ./...`, 22 pruebas frontend, comprobación de tipos y compilación de producción completadas correctamente. Las regresiones incluyen salida única sin anticipación máxima, venta desde la publicación para fechas lejanas y límites inclusivos del calendario.
 - Auditoría funcional registrada en `.medusa-auditor/results/packages-report.md`, con 22 casos aprobados y los riesgos todavía fuera del alcance de este módulo.

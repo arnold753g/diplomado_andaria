@@ -2,10 +2,12 @@ name: Andaria quality
 
 on:
   push:
-    paths: ['mobile/**', 'backend/**', 'frontend/**', '.github/workflows/quality.yml']
+    paths: ['mobile/**', 'backend/**', 'frontend/**', 'tools/security/**', 'deploy/**', 'nginx/**', 'docker-compose*.yml', '.github/workflows/quality.yml']
   pull_request:
-    paths: ['mobile/**', 'backend/**', 'frontend/**', '.github/workflows/quality.yml']
+    paths: ['mobile/**', 'backend/**', 'frontend/**', 'tools/security/**', 'deploy/**', 'nginx/**', 'docker-compose*.yml', '.github/workflows/quality.yml']
   workflow_dispatch:
+  schedule:
+    - cron: '37 9 * * 1'
 
 permissions:
   contents: read
@@ -43,6 +45,16 @@ jobs:
           yes | flutter doctor --android-licenses
       - name: Compile Android for tests
         run: flutter build apk --debug --no-pub
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.3'
+      - name: Install the pinned OSV scanner
+        run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0
+      - name: Inventory Android runtime dependencies
+        working-directory: mobile/android
+        run: ./gradlew --no-daemon -I security-sbom.gradle andariaSecuritySbom
+      - name: Scan Dart and Android runtime dependencies
+        run: osv-scanner scan source --lockfile=pubspec.lock --sbom=build/security/android.cdx.json
 
   backend:
     runs-on: ubuntu-latest
@@ -70,10 +82,41 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.25.12'
+          go-version: '1.27.3'
           cache-dependency-path: backend/go.sum
       - run: go vet ./...
       - run: go test ./... -count=1
+      - name: Bootstrap a fresh DB and start the production API with a limited role
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: ci-only-password
+          PGDATABASE: andaria_ci
+        run: |
+          export ANDARIA_DB_RUNTIME_PASSWORD=$(openssl rand -hex 32)
+          export ANDARIA_DB_MIGRATION_PASSWORD=$(openssl rand -hex 32)
+          psql -X --set=ON_ERROR_STOP=1 --file=../deploy/database-roles.sql
+          export APP_ENV=production DB_HOST=localhost DB_PORT=5432 DB_NAME=andaria_ci
+          export SESSION_SECRET=$(openssl rand -hex 32)
+          export ALLOWED_ORIGINS=https://ci.andaria.test DB_AUTO_MIGRATE=false
+          export DB_USER=andaria_migrator DB_PASSWORD="$ANDARIA_DB_MIGRATION_PASSWORD"
+          go run ./cmd/migrate
+          export DB_USER=andaria_api DB_PASSWORD="$ANDARIA_DB_RUNTIME_PASSWORD"
+          if PGPASSWORD="$DB_PASSWORD" psql -U andaria_api -c "UPDATE migraciones_esquema SET nombre='forbidden'" >/dev/null 2>&1; then
+            echo 'Runtime role can write the migration ledger'
+            exit 1
+          fi
+          go build -o "$RUNNER_TEMP/andaria-api" ./cmd/api
+          SERVER_HOST=127.0.0.1 SERVER_PORT=18880 "$RUNNER_TEMP/andaria-api" > "$RUNNER_TEMP/api-bootstrap.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18880/health >/dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          "$ready"
 
   web:
     runs-on: ubuntu-latest
@@ -92,4 +135,5 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm test
+      - run: python3 -m unittest discover -s ../tools/security -p 'test_*.py'
       - run: npm run typecheck

@@ -126,3 +126,21 @@ Pendientes externos: Google real con cliente y firma Android configurados, tecla
 
 
 Verificación del lote el 08/10/2026: Flutter analyze sin incidencias; formato de 39 archivos sin cambios; 31 pruebas Flutter aprobadas; APK debug compilado correctamente; go test ./... -count=1 y go vet ./... aprobados; 16 pruebas web y comprobación de tipos aprobadas. No se repitieron los recorridos de emulador ni las integraciones con PostgreSQL, pues TEST_DATABASE_DSN no estaba configurada. Las versiones de acciones y Flutter del workflow existen en sus repositorios oficiales; su ejecución remota queda pendiente de comprobar después del push.
+
+
+## Actualización del repositorio del 28/10/2026
+
+Preparación y verificaciones realizadas el 28/10/2026. El propietario autorizó publicar estos cuatro commits con sus fechas reales, sin modificar las fechas de autor o confirmación. Se conservan las fechas originales de los informes y del registro de revisiones; no se reescribe el historial ya publicado.
+
+- `feat: actualiza el esquema, la seguridad y las API de pagos y comprobantes`
+- `feat: incorpora gestion de pagos, comprobantes PDF y mejoras de la web`
+- `feat: actualiza Android con comprobantes, catalogo e identidad visual`
+- `chore: actualiza despliegue, controles de calidad y documentacion tecnica`
+
+El lote preparado incluye el código pendiente de backend, web y Android, las migraciones 14–17, configuración de despliegue, controles de calidad y documentación técnica seleccionada. Las etapas del lote deben consumirse juntas: no se recomienda desplegar un commit intermedio.
+
+Verificación del 28/10: suite Go con PostgreSQL local y esquemas temporales aprobada, go vet aprobado, 30 pruebas web, tipos y compilación web aprobados, análisis Flutter sin incidencias y 45 pruebas Flutter aprobadas. Gitleaks no detectó secretos en el conjunto seleccionado. No se desplegó el sistema ni se generó una nueva APK en esta actualización.
+
+Se conservan solo localmente las exportaciones, monografía, capturas y registros de revisiones que contienen copias de fuentes académicas; requieren una revisión de privacidad antes de publicarse. El registro existente no fue modificado. Esta tarea agrupó código ya existente sin editar código de la aplicación ni la monografía; únicamente ajustó exclusiones y esta nota de publicación.
+
+

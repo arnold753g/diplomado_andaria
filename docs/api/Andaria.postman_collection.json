@@ -1,0 +1,532 @@
+{
+  "info": {
+    "name": "Andaria - contrato principal",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Contrato exportado de la revisión local del 11/10/2026. No ejecutar todas las operaciones como una secuencia en producción. Login turista y agencia requieren sesiones distintas. Las mutaciones usan datos ficticios y revisión de versiones. Salud pendiente de redespliegue. Variables sensibles vacías; no incluye pruebas de rendimiento."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://diplomado.andaria.site",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "csrfToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "packageId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "departureId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "purchaseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "version",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "proofDataUri",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expectedTotalCents",
+      "value": "10000",
+      "type": "string"
+    },
+    {
+      "key": "requestKey",
+      "value": "demo-idempotencia-0001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Salud de API y PostgreSQL",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/salud",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "salud"
+          ]
+        },
+        "description": "Salud de API y PostgreSQL. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API y PostgreSQL disponibles\", () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.database).to.eql(\"ok\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Iniciar sesión",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "{{baseUrl}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Iniciar sesión. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"csrfToken\", pm.response.json().data.csrf_token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultar atractivos",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/attractions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "attractions"
+          ]
+        },
+        "description": "Consultar atractivos. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor."
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar paquetes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/packages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "packages"
+          ]
+        },
+        "description": "Consultar paquetes. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor."
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar paquete",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/packages/{{packageId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "packages",
+            "{{packageId}}"
+          ]
+        },
+        "description": "Consultar paquete. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor."
+      },
+      "response": []
+    },
+    {
+      "name": "Crear paquete en borrador",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "{{baseUrl}}"
+          },
+          {
+            "key": "X-CSRF-Token",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/agency/packages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "agency",
+            "packages"
+          ]
+        },
+        "description": "Crear paquete en borrador. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Paquete de prueba\",\n  \"duration_days\": 1,\n  \"duration_nights\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar opciones de pago",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me/packages/{{packageId}}/payment-options",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me",
+            "packages",
+            "{{packageId}}",
+            "payment-options"
+          ]
+        },
+        "description": "Consultar opciones de pago. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor."
+      },
+      "response": []
+    },
+    {
+      "name": "Crear compra de prueba",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "{{baseUrl}}"
+          },
+          {
+            "key": "X-CSRF-Token",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{requestKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me/purchases",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me",
+            "purchases"
+          ]
+        },
+        "description": "Crear compra de prueba. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"departure_id\": {{departureId}},\n  \"payment_method\": \"transfer\",\n  \"national_adults\": 1,\n  \"foreign_adults\": 0,\n  \"minors\": [],\n  \"payment_proof\": \"{{proofDataUri}}\",\n  \"expected_total_cents\": {{expectedTotalCents}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar compra propia",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me/purchases/{{purchaseId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me",
+            "purchases",
+            "{{purchaseId}}"
+          ]
+        },
+        "description": "Consultar compra propia. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor."
+      },
+      "response": []
+    },
+    {
+      "name": "Revisar pago como agencia",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "{{baseUrl}}"
+          },
+          {
+            "key": "X-CSRF-Token",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/agency/purchases/{{purchaseId}}/review",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "agency",
+            "purchases",
+            "{{purchaseId}}",
+            "review"
+          ]
+        },
+        "description": "Revisar pago como agencia. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": {{version}},\n  \"decision\": \"confirm\",\n  \"reason\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Cancelar compra de prueba",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "{{baseUrl}}"
+          },
+          {
+            "key": "X-CSRF-Token",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/me/purchases/{{purchaseId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "me",
+            "purchases",
+            "{{purchaseId}}",
+            "cancel"
+          ]
+        },
+        "description": "Cancelar compra de prueba. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": {{version}},\n  \"reason\": \"Cancelación ficticia\",\n  \"refund_method\": \"bank_transfer\",\n  \"refund_bank_name\": \"Banco de prueba\",\n  \"refund_account_holder\": \"Titular ficticio\",\n  \"refund_account_number\": \"000000\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Completar devolución de prueba",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "{{baseUrl}}"
+          },
+          {
+            "key": "X-CSRF-Token",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/agency/purchases/{{purchaseId}}/refund",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "agency",
+            "purchases",
+            "{{purchaseId}}",
+            "refund"
+          ]
+        },
+        "description": "Completar devolución de prueba. Cookie de sesión administrada por Postman; autorización por rol y propiedad aplicada en servidor.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": {{version}},\n  \"refund_proof\": \"{{proofDataUri}}\",\n  \"refund_reference\": \"DEMO-DEVOLUCION\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    }
+  ]
+}

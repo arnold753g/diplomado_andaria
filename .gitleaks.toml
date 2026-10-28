@@ -1,0 +1,38 @@
+title = "Andaria: default rules with narrowly scoped public fixtures"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public repeated hex test fixture, never a deployed credential"
+condition = "AND"
+paths = ['''(^|/)backend/internal/(config/config_test|security/security_test|httpapi/router_test)\.go$''']
+regexTarget = "secret"
+regexes = ['''^0123456789abcdef0123456789abcdef$''']
+
+[[allowlists]]
+description = "Go module integrity checksums, not API keys"
+condition = "AND"
+paths = ['''(^|/)backend/go\.sum$''']
+regexTarget = "line"
+regexes = ['''^\S+ v\S+ h1:[A-Za-z0-9+/=]+$''']
+
+[[allowlists]]
+description = "Two exact public cloud auth integrity hashes copied into revision snapshots"
+condition = "AND"
+paths = ['''(^|/)docs/revisiones/[0-9]+-[0-9-]+/(antes|despues)\.json$''']
+regexTarget = "secret"
+regexes = ['''^g/QwYfYb2Ai6HH8oomAOyBaIHLbscZ4\+T/F/f5JZHkE=$''', '''^M9o2Oz\+YI2jAfxewJgb1vyI3vceHF\+eohmxyzmrl\+9s=$''']
+
+[[allowlists]]
+description = "Public Android signing certificate fingerprint, not a private signing key"
+condition = "AND"
+paths = ['''(^|/)docs/evidencias/cierre-2026-10-10/apk-firma\.txt$''']
+regexTarget = "line"
+regexes = ['''key SHA-256 digest: [0-9A-Fa-f]{64}''']
+
+[[allowlists]]
+description = "Document SHA256 integrity metadata"
+condition = "AND"
+paths = ['''(^|/)docs/evidencias/cierre-2026-10-10/problema-justificacion-corregidos\.json$''']
+regexTarget = "line"
+regexes = ['''"[^"\r\n]+\.tex": "[0-9a-f]{64}"''']

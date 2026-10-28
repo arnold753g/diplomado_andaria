@@ -1,0 +1,10 @@
+[
+  {
+    "module": "node-forge",
+    "advisory": "GHSA-86w9-cpqp-85rv",
+    "versions": ["1.4.0"],
+    "expires": "2026-11-06",
+    "owner": "Mantenimiento Andaria",
+    "reason": "Dependencia de listhen para herramientas locales, ausente del artefacto SSR. No se usa para verificar firmas de usuarios. No hay versión corregida indicada por npm."
+  }
+]

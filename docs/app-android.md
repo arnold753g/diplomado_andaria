@@ -6,6 +6,10 @@ Flutter + Dart en `mobile/`, versionado junto al backend y la web. Solo turistas
 
 ## Contrato móvil añadido
 
+### Comprobantes PDF
+
+La versión 0.1.6+7 incorpora el mismo comprobante generado por el backend para la web: vista previa, compartir e imprimir/Guardar como PDF. La descarga exige sesión y se oculta al cambiar de cuenta. Requiere desplegar primero la API y la migración 17. Véase [comprobantes PDF](comprobantes-pdf.md).
+
 ### Autenticación
 
 `GET /api/v1/auth/mobile/options` devuelve `registration_enabled`, `google_enabled` y el identificador OAuth público `google_server_client_id`.

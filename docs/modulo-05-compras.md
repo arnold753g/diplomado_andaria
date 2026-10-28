@@ -53,3 +53,11 @@ La interfaz web está en `/packages/{id}/purchase`, `/app/purchases` y `/agency/
 - Informe reproducible en `.medusa-auditor/results/purchases-report.md`.
 
 La transferencia o lectura bancaria sigue siendo externa: la agencia compara manualmente el comprobante. La cancelación, los destinos QR o bancarios y la constancia de devolución se describen en [Módulo 6](modulo-06-cancelaciones-reembolsos.md).
+
+## Gestionar pagos y autorizacion manual (27/10/2026)
+
+La vista de agencia se organiza por paquete y salida, con pagos, compradores y reembolsos separados. La lista imprimible incluye todas las compras confirmadas y no solo una pagina. La migracion 16 registra la ultima autorizacion del encargado y su eventual revocacion por perdida del minimo. Ver [reglas, API y despliegue](gestion-pagos.md).
+
+## Gestionar pagos y autorizacion manual (27/10/2026)
+
+La vista de agencia se organiza por paquete y salida, con pagos, compradores y reembolsos separados. Alcanzar el minimo comercial no autoriza el viaje: el encargado debe confirmarlo expresamente. La lista imprimible incluye todas las compras confirmadas y no solo una pagina. La migracion 16 registra la ultima autorizacion y su eventual revocacion por perdida del minimo. Ver [reglas, API y despliegue](gestion-pagos.md).
