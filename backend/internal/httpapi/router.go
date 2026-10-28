@@ -29,7 +29,11 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	purchaseHandler := handlers.NewPurchaseHandler(db)
 	dashboardHandler := handlers.NewDashboardHandler(db)
 
-	router.HandleFunc("/health", handlers.Health).Methods(http.MethodGet)
+	health := handlers.NewHealth(db)
+	// Readiness aliases share the same DB check; keep the existing container probe.
+	router.HandleFunc("/health", health).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/health", health).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/salud", health).Methods(http.MethodGet)
 
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.Use(middleware.NewRateLimiter(cfg.APIRatePerMinute, cfg.TrustProxy).Middleware)
@@ -47,6 +51,7 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	publicAuth.Use(middleware.NewRateLimiter(cfg.AuthRatePerMinute, cfg.TrustProxy).Middleware)
 	publicAuth.Use(authenticator.OriginGuard)
 	publicAuth.HandleFunc("/register", authHandler.Register).Methods(http.MethodPost)
+	publicAuth.HandleFunc("/verify-email", authHandler.VerifyEmail).Methods(http.MethodPost)
 	publicAuth.HandleFunc("/login", authHandler.Login).Methods(http.MethodPost)
 	publicAuth.HandleFunc("/options", authHandler.Options).Methods(http.MethodGet)
 	publicAuth.HandleFunc("/mobile/options", authHandler.MobileOptions).Methods(http.MethodGet)
@@ -80,9 +85,14 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	agency.HandleFunc("/packages/{id:[0-9]+}/departures/{departure:[0-9]+}", packageHandler.UpdateDeparture).Methods(http.MethodPatch)
 	agency.HandleFunc("/packages/{id:[0-9]+}/departures/{departure:[0-9]+}/cancel", packageHandler.CancelDeparture).Methods(http.MethodPost)
 	agency.HandleFunc("/packages/{id:[0-9]+}/departures/{departure:[0-9]+}/minimum-refund", packageHandler.ConfirmMinimumRefund).Methods(http.MethodPost)
+	agency.HandleFunc("/payments/departures", purchaseHandler.PaymentDepartures).Methods(http.MethodGet)
+	agency.HandleFunc("/payments/departures/{departure:[0-9]+}", purchaseHandler.PaymentDeparture).Methods(http.MethodGet)
+	agency.HandleFunc("/payments/departures/{departure:[0-9]+}/roster", purchaseHandler.DepartureRoster).Methods(http.MethodGet)
+	agency.HandleFunc("/payments/departures/{departure:[0-9]+}/authorize", packageHandler.AuthorizeDeparture).Methods(http.MethodPost)
 	agency.HandleFunc("/purchases", purchaseHandler.ListAgency).Methods(http.MethodGet)
 	agency.HandleFunc("/purchases/{id:[0-9]+}", purchaseHandler.GetAgency).Methods(http.MethodGet)
 	agency.HandleFunc("/purchases/{id:[0-9]+}/proof", purchaseHandler.ProofAgency).Methods(http.MethodGet)
+	agency.HandleFunc("/purchases/{id:[0-9]+}/receipt", purchaseHandler.ReceiptAgency).Methods(http.MethodGet)
 	agency.HandleFunc("/purchases/{id:[0-9]+}/review", purchaseHandler.Review).Methods(http.MethodPatch)
 	agency.HandleFunc("/purchases/{id:[0-9]+}/refund-qr", purchaseHandler.RefundQRAgency).Methods(http.MethodGet)
 	agency.HandleFunc("/purchases/{id:[0-9]+}/refund-proof", purchaseHandler.RefundProofAgency).Methods(http.MethodGet)
@@ -107,6 +117,7 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	touristPurchases.HandleFunc("", purchaseHandler.Create).Methods(http.MethodPost)
 	touristPurchases.HandleFunc("/{id:[0-9]+}", purchaseHandler.GetMine).Methods(http.MethodGet)
 	touristPurchases.HandleFunc("/{id:[0-9]+}/proof", purchaseHandler.ProofMine).Methods(http.MethodGet)
+	touristPurchases.HandleFunc("/{id:[0-9]+}/receipt", purchaseHandler.ReceiptMine).Methods(http.MethodGet)
 	touristPurchases.HandleFunc("/{id:[0-9]+}/proof", purchaseHandler.UpdateProof).Methods(http.MethodPatch)
 	touristPurchases.HandleFunc("/{id:[0-9]+}/cancel", purchaseHandler.CancelMine).Methods(http.MethodPost)
 	touristPurchases.HandleFunc("/{id:[0-9]+}/refund-destination", purchaseHandler.UpdateRefundDestination).Methods(http.MethodPatch)
@@ -148,5 +159,6 @@ func New(db *gorm.DB, cfg config.Config, logger *slog.Logger) (http.Handler, err
 	handler = middleware.SecurityHeaders(handler)
 	handler = middleware.Recover(logger)(handler)
 	handler = middleware.RequestID(handler)
+	handler = middleware.TrustedProxies(cfg.TrustProxy, cfg.TrustedProxyCIDRs)(handler)
 	return handler, nil
 }

@@ -68,17 +68,17 @@ type packageResponse struct {
 
 func packageQuery(db *gorm.DB) *gorm.DB {
 	return db.
-		Preload("Agency", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "name", "minimum_paying_age") }).
-		Preload("Photos", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "package_id", "position").Order("position, id") }).
+		Preload("Agency", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "nombre", "edad_minima_pago") }).
+		Preload("Photos", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "paquete_id", "posicion").Order("posicion, id") }).
 		Preload("Schedule").
-		Preload("Itinerary", func(tx *gorm.DB) *gorm.DB { return tx.Order("day_number, id") }).
-		Preload("Itinerary.Attractions", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).
-		Preload("Itinerary.Attractions.Attraction", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "name", "department", "city") })
+		Preload("Itinerary", func(tx *gorm.DB) *gorm.DB { return tx.Order("numero_dia, id") }).
+		Preload("Itinerary.Attractions", func(tx *gorm.DB) *gorm.DB { return tx.Order("posicion") }).
+		Preload("Itinerary.Attractions.Attraction", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "nombre", "departamento", "ciudad") })
 }
 
 func packageDetailQuery(db *gorm.DB) *gorm.DB {
 	return packageQuery(db).Preload("Departures", func(tx *gorm.DB) *gorm.DB {
-		return tx.Where("starts_at >= ?", time.Now().Add(-24*time.Hour)).Order("starts_at, id").Limit(400)
+		return tx.Where("salida_en >= ?", time.Now().Add(-24*time.Hour)).Order("salida_en, id").Limit(400)
 	})
 }
 
@@ -94,7 +94,7 @@ func packageView(p models.TourPackage) packageResponse {
 func (h *PackageHandler) ownAgency(r *http.Request, db *gorm.DB) (models.Agency, error) {
 	principal, _ := middleware.CurrentPrincipal(r)
 	var agency models.Agency
-	err := db.Where("manager_id = ?", principal.User.ID).First(&agency).Error
+	err := db.Where("encargado_id = ?", principal.User.ID).First(&agency).Error
 	return agency, err
 }
 
@@ -105,9 +105,9 @@ func (h *PackageHandler) ListMine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page, limit := queryInt(r, "page", 1, 1, 100000), queryInt(r, "limit", 12, 1, 50)
-	q := h.db.Model(&models.TourPackage{}).Where("agency_id = ?", agency.ID)
+	q := h.db.Model(&models.TourPackage{}).Where("agencia_id = ?", agency.ID)
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
-		q = q.Where("LOWER(name) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
+		q = q.Where("LOWER(nombre) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
 	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
@@ -115,7 +115,7 @@ func (h *PackageHandler) ListMine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var packages []models.TourPackage
-	if err := packageQuery(q).Order("tour_packages.created_at DESC, tour_packages.id DESC").Limit(limit).Offset((page - 1) * limit).Find(&packages).Error; err != nil {
+	if err := packageQuery(q).Order("paquetes_turisticos.creado_en DESC, paquetes_turisticos.id DESC").Limit(limit).Offset((page - 1) * limit).Find(&packages).Error; err != nil {
 		packageError(w, r, err)
 		return
 	}
@@ -137,7 +137,7 @@ func (h *PackageHandler) GetMine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var item models.TourPackage
-	if err := packageDetailQuery(h.db.Where("agency_id = ?", agency.ID)).First(&item, id).Error; err != nil {
+	if err := packageDetailQuery(h.db.Where("agencia_id = ?", agency.ID)).First(&item, id).Error; err != nil {
 		packageError(w, r, err)
 		return
 	}
@@ -150,16 +150,16 @@ func (h *PackageHandler) Attractions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var attractions []struct {
-		ID         uint64 `json:"id"`
-		Name       string `json:"name"`
-		Department string `json:"department"`
-		City       string `json:"city"`
+		ID         uint64 `gorm:"column:id" json:"id"`
+		Name       string `gorm:"column:nombre" json:"name"`
+		Department string `gorm:"column:departamento" json:"department"`
+		City       string `gorm:"column:ciudad" json:"city"`
 	}
-	q := h.db.Model(&models.Attraction{}).Select("id, name, department, city").Where("status = ? AND published = TRUE", models.StatusActive)
+	q := h.db.Model(&models.Attraction{}).Select("id, nombre, departamento, ciudad").Where("estado = ? AND publicado = TRUE", models.StatusActive)
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
-		q = q.Where("LOWER(name || ' ' || city || ' ' || department) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
+		q = q.Where("LOWER(nombre || ' ' || ciudad || ' ' || departamento) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
 	}
-	if err := q.Order("name, id").Limit(100).Scan(&attractions).Error; err != nil {
+	if err := q.Order("nombre, id").Limit(100).Scan(&attractions).Error; err != nil {
 		packageError(w, r, err)
 		return
 	}
@@ -220,7 +220,7 @@ func (h *PackageHandler) save(w http.ResponseWriter, r *http.Request, create boo
 			item.AgencyID = agency.ID
 			item.Version = 1
 		} else {
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("agency_id = ?", agency.ID).First(&item, id).Error; err != nil {
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("agencia_id = ?", agency.ID).First(&item, id).Error; err != nil {
 				return err
 			}
 			if item.Version != input.Version {
@@ -235,7 +235,7 @@ func (h *PackageHandler) save(w http.ResponseWriter, r *http.Request, create boo
 		}
 		if len(attractionIDs) > 0 {
 			var count int64
-			if err := tx.Model(&models.Attraction{}).Where("id IN ? AND status = ? AND published = TRUE", attractionIDs, models.StatusActive).Distinct("id").Count(&count).Error; err != nil {
+			if err := tx.Model(&models.Attraction{}).Where("id IN ? AND estado = ? AND publicado = TRUE", attractionIDs, models.StatusActive).Distinct("id").Count(&count).Error; err != nil {
 				return err
 			}
 			unique := map[uint64]bool{}
@@ -271,7 +271,7 @@ func (h *PackageHandler) save(w http.ResponseWriter, r *http.Request, create boo
 		keep := make([]uint64, 0, len(input.Photos))
 		for position, photoInput := range input.Photos {
 			if photoInput.ID > 0 {
-				result := tx.Model(&models.TourPackagePhoto{}).Where("id = ? AND package_id = ?", photoInput.ID, item.ID).Update("position", position)
+				result := tx.Model(&models.TourPackagePhoto{}).Where("id = ? AND paquete_id = ?", photoInput.ID, item.ID).Update("posicion", position)
 				if result.Error != nil {
 					return result.Error
 				}
@@ -287,7 +287,7 @@ func (h *PackageHandler) save(w http.ResponseWriter, r *http.Request, create boo
 				keep = append(keep, photo.ID)
 			}
 		}
-		photoDelete := tx.Where("package_id = ?", item.ID)
+		photoDelete := tx.Where("paquete_id = ?", item.ID)
 		if len(keep) > 0 {
 			photoDelete = photoDelete.Where("id NOT IN ?", keep)
 		}
@@ -295,7 +295,7 @@ func (h *PackageHandler) save(w http.ResponseWriter, r *http.Request, create boo
 			return err
 		}
 
-		if err := tx.Where("package_id = ?", item.ID).Delete(&models.PackageItineraryDay{}).Error; err != nil {
+		if err := tx.Where("paquete_id = ?", item.ID).Delete(&models.PackageItineraryDay{}).Error; err != nil {
 			return err
 		}
 		for _, dayInput := range input.Itinerary {
@@ -346,8 +346,8 @@ func (h *PackageHandler) PhotoMine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var photo models.TourPackagePhoto
-	permitted := h.db.Model(&models.TourPackage{}).Select("id").Where("id = ? AND agency_id = ?", id, agency.ID)
-	if err := h.db.Where("id = ? AND package_id IN (?)", photoID, permitted).First(&photo).Error; err != nil {
+	permitted := h.db.Model(&models.TourPackage{}).Select("id").Where("id = ? AND agencia_id = ?", id, agency.ID)
+	if err := h.db.Where("id = ? AND paquete_id IN (?)", photoID, permitted).First(&photo).Error; err != nil {
 		packageError(w, r, err)
 		return
 	}

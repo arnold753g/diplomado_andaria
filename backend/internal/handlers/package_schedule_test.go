@@ -80,3 +80,66 @@ func TestScheduleRangeAndPurchaseWindowAreBounded(t *testing.T) {
 		t.Fatalf("unbounded schedule was accepted: %v", fields)
 	}
 }
+
+func TestSingleScheduleDoesNotRequireMaximumAdvanceOrEndDate(t *testing.T) {
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, boliviaTime)
+	input := packageScheduleInput{
+		FrequencyType: packageFrequencySingle, ValidFrom: "2028-10-30",
+		DepartureTime: "08:00", MeetingTime: "07:45", DefaultMinCapacity: 1, DefaultMaxCapacity: 15,
+		BookingCutoffHours: 24,
+	}
+	fields := map[string]string{}
+	validatePackageSchedule(&input, fields, true, true, now)
+	if len(fields) != 0 {
+		t.Fatalf("single schedule without recurring-only fields rejected: %v", fields)
+	}
+	if input.ValidUntil != input.ValidFrom {
+		t.Fatal("single departure did not normalize its end date")
+	}
+	if input.MaximumAdvanceDays < 1 || input.MaximumAdvanceDays > 365 || input.BookingCutoffHours >= input.MaximumAdvanceDays*24 {
+		t.Fatal("single schedule did not retain a schema-compatible advance value")
+	}
+}
+
+func TestSingleDepartureOpensImmediatelyAndKeepsConfiguredCutoff(t *testing.T) {
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, boliviaTime)
+	day, _ := parseScheduleDate("2028-10-30")
+	schedule := models.TourPackageSchedule{
+		FrequencyType: packageFrequencySingle, ValidFrom: day, ValidUntil: day,
+		DepartureTime: "08:00", MeetingTime: "07:45", DefaultMinCapacity: 1, DefaultMaxCapacity: 15,
+		BookingCutoffHours: 24, MaximumAdvanceDays: 180,
+	}
+	departures, err := buildPackageDepartures(&schedule, now)
+	if err != nil || len(departures) != 1 {
+		t.Fatalf("single departure generation failed: %v (%d departures)", err, len(departures))
+	}
+	departure := departures[0]
+	if !departure.BookingOpensAt.Equal(now) {
+		t.Fatalf("single departure does not open immediately: %s", departure.BookingOpensAt)
+	}
+	wantClose := time.Date(2028, 10, 29, 8, 0, 0, 0, boliviaTime)
+	if !departure.BookingClosesAt.Equal(wantClose) || !publicDepartureView(departure, now).Bookable {
+		t.Fatal("single departure is not bookable immediately with its configured cutoff")
+	}
+	if publicDepartureView(departure, wantClose).Bookable {
+		t.Fatal("single departure remained bookable at the cutoff")
+	}
+}
+
+func TestSingleClosedDraftRetainsValidPurchaseWindow(t *testing.T) {
+	now := time.Date(2026, 10, 29, 8, 0, 0, 0, boliviaTime)
+	day, _ := parseScheduleDate("2026-10-30")
+	schedule := models.TourPackageSchedule{
+		FrequencyType: packageFrequencySingle, ValidFrom: day, ValidUntil: day,
+		DepartureTime: "08:00", MeetingTime: "07:45", DefaultMinCapacity: 1, DefaultMaxCapacity: 15,
+		BookingCutoffHours: 24, MaximumAdvanceDays: 365,
+	}
+	departures, err := buildPackageDepartures(&schedule, now)
+	if err != nil || len(departures) != 1 {
+		t.Fatalf("closed draft generation failed: %v", err)
+	}
+	departure := departures[0]
+	if departure.Status != "closed" || !departure.BookingOpensAt.Before(departure.BookingClosesAt) || publicDepartureView(departure, now).Bookable {
+		t.Fatal("closed draft lost its valid closed purchase interval")
+	}
+}

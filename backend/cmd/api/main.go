@@ -30,11 +30,21 @@ func main() {
 		os.Exit(1)
 	}
 	defer database.Close(db)
+	if cfg.AppEnv == "production" {
+		if err := database.ValidateRuntimeRole(db); err != nil {
+			logger.Error("unsafe database role", "error", err)
+			os.Exit(1)
+		}
+	}
 	if cfg.AutoMigrate {
 		if err := database.Migrate(db); err != nil {
 			logger.Error("database migration failed", "error", err)
 			os.Exit(1)
 		}
+	}
+	if err := database.ValidateSchemaVersion(db); err != nil {
+		logger.Error("database schema mismatch", "error", err)
+		os.Exit(1)
 	}
 
 	handler, err := httpapi.New(db, cfg, logger)
@@ -50,6 +60,7 @@ func main() {
 	shutdownSignal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go services.RunMinimumReviewWorker(shutdownSignal, db, logger, time.Minute)
+	go services.RunRegistrationCleanup(shutdownSignal, db, logger)
 	go func() {
 		<-shutdownSignal.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

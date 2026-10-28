@@ -25,14 +25,14 @@ import (
 const oauthCookie = "andaria_google_state"
 
 type oauthAttempt struct {
-	StateHash string `gorm:"primaryKey"`
-	Verifier  string
-	UserID    *uint64
-	SessionID *string
-	ExpiresAt time.Time
+	StateHash string    `gorm:"column:hash_estado;primaryKey"`
+	Verifier  string    `gorm:"column:verificador"`
+	UserID    *uint64   `gorm:"column:usuario_id"`
+	SessionID *string   `gorm:"column:sesion_id"`
+	ExpiresAt time.Time `gorm:"column:vence_en"`
 }
 
-func (oauthAttempt) TableName() string { return "oauth_attempts" }
+func (oauthAttempt) TableName() string { return "intentos_oauth" }
 
 type googleIdentity struct {
 	Subject       string `json:"sub"`
@@ -78,7 +78,7 @@ func (h *AuthHandler) startGoogle(w http.ResponseWriter, r *http.Request, userID
 	}
 	attempt := oauthAttempt{StateHash: security.HashToken(state), Verifier: verifier, UserID: userID, SessionID: sessionID, ExpiresAt: time.Now().UTC().Add(10 * time.Minute)}
 	if err := h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("expires_at < ?", time.Now().UTC()).Delete(&oauthAttempt{}).Error; err != nil {
+		if err := tx.Where("vence_en < ?", time.Now().UTC()).Delete(&oauthAttempt{}).Error; err != nil {
 			return err
 		}
 		return tx.Create(&attempt).Error
@@ -113,7 +113,7 @@ func (h *AuthHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	var attempt oauthAttempt
 	// Consumption is atomic: retries and concurrent callbacks cannot reuse an authorization attempt.
 	err = h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("state_hash = ? AND expires_at > ?", security.HashToken(state), time.Now().UTC()).First(&attempt).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("hash_estado = ? AND vence_en > ?", security.HashToken(state), time.Now().UTC()).First(&attempt).Error; err != nil {
 			return err
 		}
 		return tx.Delete(&attempt).Error
@@ -225,7 +225,7 @@ func (h *AuthHandler) resolveGoogleUser(identity googleIdentity, attempt oauthAt
 				return errors.New("link_invalid")
 			}
 			var session models.Session
-			if err := tx.Where("id = ? AND user_id = ? AND revoked_at IS NULL AND expires_at > ? AND last_activity_at > ?", *attempt.SessionID, *attempt.UserID, time.Now().UTC(), time.Now().UTC().Add(-h.cfg.SessionIdleTimeout)).First(&session).Error; err != nil {
+			if err := tx.Where("id = ? AND usuario_id = ? AND revocado_en IS NULL AND vence_en > ? AND ultima_actividad_en > ?", *attempt.SessionID, *attempt.UserID, time.Now().UTC(), time.Now().UTC().Add(-h.cfg.SessionIdleTimeout)).First(&session).Error; err != nil {
 				return errors.New("link_invalid")
 			}
 			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, *attempt.UserID).Error; err != nil {
@@ -237,15 +237,16 @@ func (h *AuthHandler) resolveGoogleUser(identity googleIdentity, attempt oauthAt
 			if user.Email != identity.Email || user.GoogleSubject != nil {
 				return errors.New("link_invalid")
 			}
-			if err := tx.Model(&user).Update("google_subject", identity.Subject).Error; err != nil {
+			now := time.Now().UTC()
+			if err := tx.Model(&user).Updates(map[string]any{"identificador_google": identity.Subject, "correo_verificado_en": now}).Error; err != nil {
 				return errors.New("link_invalid")
 			}
 			return nil
 		}
-		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("google_subject = ?", identity.Subject).First(&user).Error
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("identificador_google = ?", identity.Subject).First(&user).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			var count int64
-			if err := tx.Model(&models.User{}).Where("email = ?", identity.Email).Count(&count).Error; err != nil {
+			if err := tx.Model(&models.User{}).Where("correo = ?", identity.Email).Count(&count).Error; err != nil {
 				return err
 			}
 			if count > 0 {
@@ -254,7 +255,8 @@ func (h *AuthHandler) resolveGoogleUser(identity googleIdentity, attempt oauthAt
 			if !h.cfg.RegistrationEnabled {
 				return errors.New("registration_disabled")
 			}
-			user = models.User{Email: identity.Email, FirstName: googleName(identity.GivenName, "Viajero"), LastName: googleName(identity.FamilyName, ""), GoogleSubject: &identity.Subject, Role: models.RoleUser, Status: models.StatusActive}
+			now := time.Now().UTC()
+			user = models.User{Email: identity.Email, FirstName: googleName(identity.GivenName, "Viajero"), LastName: googleName(identity.FamilyName, ""), GoogleSubject: &identity.Subject, Role: models.RoleUser, Status: models.StatusActive, EmailVerifiedAt: &now}
 			if err := tx.Create(&user).Error; err != nil {
 				return err
 			}
@@ -266,7 +268,7 @@ func (h *AuthHandler) resolveGoogleUser(identity googleIdentity, attempt oauthAt
 		}
 		now := time.Now().UTC()
 		user.LastLoginAt = &now
-		return tx.Model(&user).Update("last_login_at", now).Error
+		return tx.Model(&user).Update("ultimo_acceso_en", now).Error
 	})
 	return user, err
 }

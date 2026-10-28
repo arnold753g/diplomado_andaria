@@ -66,15 +66,17 @@ func validatePackageSchedule(input *packageScheduleInput, fields map[string]stri
 	if !slices.Contains([]string{packageFrequencySingle, packageFrequencyDaily, packageFrequencyWeekdays}, input.FrequencyType) {
 		fields["schedule.frequency_type"] = "Selecciona una frecuencia válida"
 	}
+	if input.FrequencyType == packageFrequencySingle {
+		input.ValidUntil = input.ValidFrom
+		// Retain the existing SQL column/constraints for compatibility. Single
+		// departures open immediately, so this value is not a booking horizon.
+		input.MaximumAdvanceDays = 365
+	}
 	from, fromErr := parseScheduleDate(input.ValidFrom)
 	until, untilErr := parseScheduleDate(input.ValidUntil)
 	if fromErr != nil || untilErr != nil {
 		fields["schedule.dates"] = "Selecciona fechas válidas"
 	} else {
-		if input.FrequencyType == packageFrequencySingle {
-			until = from
-			input.ValidUntil = input.ValidFrom
-		}
 		if until.Before(from) || until.After(from.AddDate(1, 0, 0)) {
 			fields["schedule.dates"] = "El rango debe finalizar después de su inicio y no superar doce meses"
 		}
@@ -184,6 +186,14 @@ func buildPackageDepartures(schedule *models.TourPackageSchedule, now time.Time)
 		meetingAt := time.Date(day.Year(), day.Month(), day.Day(), meetingHour, meetingMinute, 0, 0, boliviaTime)
 		bookingOpensAt := startsAt.AddDate(0, 0, -schedule.MaximumAdvanceDays)
 		bookingClosesAt := startsAt.Add(-time.Duration(schedule.BookingCutoffHours) * time.Hour)
+		if schedule.FrequencyType == packageFrequencySingle {
+			bookingOpensAt = now
+			if !bookingOpensAt.Before(bookingClosesAt) {
+				// A closed draft must still satisfy the SQL interval constraint.
+				// Publishing it remains forbidden by validatePackageSchedule.
+				bookingOpensAt = bookingClosesAt.Add(-time.Microsecond)
+			}
+		}
 		status := "open"
 		if !bookingClosesAt.After(now) {
 			status = "closed"
@@ -202,15 +212,15 @@ func buildPackageDepartures(schedule *models.TourPackageSchedule, now time.Time)
 
 func savePackageSchedule(tx *gorm.DB, packageID uint64, input *packageScheduleInput, now time.Time) error {
 	if input == nil {
-		if err := tx.Where("package_id = ? AND starts_at > ? AND held_capacity = 0 AND confirmed_capacity = 0 AND is_exception = FALSE", packageID, now).Delete(&models.TourPackageDeparture{}).Error; err != nil {
+		if err := tx.Where("paquete_id = ? AND salida_en > ? AND cupos_reservados = 0 AND cupos_confirmados = 0 AND es_excepcion = FALSE", packageID, now).Delete(&models.TourPackageDeparture{}).Error; err != nil {
 			return err
 		}
-		return tx.Where("package_id = ?", packageID).Delete(&models.TourPackageSchedule{}).Error
+		return tx.Where("paquete_id = ?", packageID).Delete(&models.TourPackageSchedule{}).Error
 	}
 	from, _ := parseScheduleDate(input.ValidFrom)
 	until, _ := parseScheduleDate(input.ValidUntil)
 	var schedule models.TourPackageSchedule
-	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("package_id = ?", packageID).First(&schedule).Error
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("paquete_id = ?", packageID).First(&schedule).Error
 	creating := errors.Is(err, gorm.ErrRecordNotFound)
 	if err != nil && !creating {
 		return err
@@ -237,7 +247,7 @@ func savePackageSchedule(tx *gorm.DB, packageID uint64, input *packageScheduleIn
 	} else if err := tx.Save(&schedule).Error; err != nil {
 		return err
 	}
-	if err := tx.Where("package_id = ? AND starts_at > ? AND held_capacity = 0 AND confirmed_capacity = 0 AND is_exception = FALSE", packageID, now).Delete(&models.TourPackageDeparture{}).Error; err != nil {
+	if err := tx.Where("paquete_id = ? AND salida_en > ? AND cupos_reservados = 0 AND cupos_confirmados = 0 AND es_excepcion = FALSE", packageID, now).Delete(&models.TourPackageDeparture{}).Error; err != nil {
 		return err
 	}
 	departures, err := buildPackageDepartures(&schedule, now)
@@ -245,7 +255,7 @@ func savePackageSchedule(tx *gorm.DB, packageID uint64, input *packageScheduleIn
 		return err
 	}
 	for i := range departures {
-		if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "package_id"}, {Name: "starts_at"}}, DoNothing: true}).Create(&departures[i]).Error; err != nil {
+		if err := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "paquete_id"}, {Name: "salida_en"}}, DoNothing: true}).Create(&departures[i]).Error; err != nil {
 			return err
 		}
 	}

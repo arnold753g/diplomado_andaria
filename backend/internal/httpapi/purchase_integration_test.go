@@ -158,6 +158,15 @@ func TestPurchaseCapacityPricingReviewAndRoleIsolation(t *testing.T) {
 	request("GET", fmt.Sprintf("/api/v1/me/purchases/%d", purchase.ID), nil, 3, 404)
 	request("GET", fmt.Sprintf("/api/v1/agency/purchases/%d", purchase.ID), nil, 1, 404)
 	request("GET", fmt.Sprintf("/api/v1/agency/purchases/%d/proof", purchase.ID), nil, 0, 200)
+	receiptMine := fmt.Sprintf("/api/v1/me/purchases/%d/receipt", purchase.ID)
+	receiptAgency := fmt.Sprintf("/api/v1/agency/purchases/%d/receipt", purchase.ID)
+	request("GET", receiptMine, nil, -1, 401)
+	request("GET", receiptMine, nil, 3, 404)
+	request("GET", receiptAgency, nil, 1, 404)
+	request("GET", receiptMine, nil, 4, 403)
+	request("GET", receiptMine, nil, 0, 403)
+	request("GET", receiptAgency, nil, 2, 403)
+	request("GET", receiptMine, nil, 2, 409)
 	reviewPath := fmt.Sprintf("/api/v1/agency/purchases/%d/review", purchase.ID)
 	request("PATCH", reviewPath, map[string]any{"version": purchase.Version, "decision": "confirm"}, -1, 401)
 	request("PATCH", reviewPath, map[string]any{"version": purchase.Version, "decision": "confirm"}, 2, 403)
@@ -170,6 +179,51 @@ func TestPurchaseCapacityPricingReviewAndRoleIsolation(t *testing.T) {
 	}
 	if created.Data.Status != models.PurchaseConfirmed {
 		t.Fatalf("purchase not confirmed: %s", confirmedResponse.Body.String())
+	}
+	if created.Data.PaymentConfirmedAt == nil {
+		t.Fatal("payment confirmation timestamp not persisted")
+	}
+	var receiptPurchase models.TourPackagePurchase
+	receiptPackageName := item.Name
+	if err := db.First(&receiptPurchase, purchase.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if receiptPurchase.ReceiptSnapshot.Origin != "compra" || receiptPurchase.ReceiptSnapshot.PackageName != item.Name {
+		t.Fatal("purchase snapshot missing")
+	}
+	if err := db.Model(&item).Updates(map[string]any{"nombre": "Nombre posterior", "precio_nacional_centavos": 99999}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&agencies[0]).Update("nombre", "Agencia posterior").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&receiptPurchase).Update("datos_comprobante", `{}`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.First(&receiptPurchase, purchase.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if receiptPurchase.ReceiptSnapshot.PackageName != receiptPackageName || receiptPurchase.ReceiptSnapshot.AgencyName != "Agencia Comprable" || receiptPurchase.NationalUnitPriceCents != 25000 {
+		t.Fatal("catalog changes altered receipt")
+	}
+	for _, entry := range []struct {
+		path    string
+		account int
+	}{{receiptMine, 2}, {receiptAgency, 0}, {receiptMine + "?download=1", 2}} {
+		pdf := request("GET", entry.path, nil, entry.account, 200)
+		if pdf.Header().Get("Content-Type") != "application/pdf" || pdf.Header().Get("Cache-Control") != "private, no-store" || !bytes.HasPrefix(pdf.Body.Bytes(), []byte("%PDF-")) {
+			t.Fatal("invalid or cacheable receipt")
+		}
+		if entry.path == receiptMine+"?download=1" && pdf.Header().Get("Content-Disposition")[:10] != "attachment" {
+			t.Fatal("download disposition missing")
+		}
+	}
+	// Restore live prices so the remaining capacity/pricing scenarios stay unchanged.
+	if err := db.Model(&item).Updates(map[string]any{"nombre": receiptPackageName, "precio_nacional_centavos": 25000}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(&agencies[0]).Update("nombre", "Agencia Comprable").Error; err != nil {
+		t.Fatal(err)
 	}
 	if err := db.First(&departures[0], departures[0].ID).Error; err != nil {
 		t.Fatal(err)
@@ -339,7 +393,7 @@ func TestPurchaseCapacityPricingReviewAndRoleIsolation(t *testing.T) {
 	}
 	minimumPurchaseID := created.Data.ID
 	request("PATCH", fmt.Sprintf("/api/v1/agency/purchases/%d/review", minimumPurchaseID), map[string]any{"version": created.Data.Version, "decision": "confirm"}, 0, 200)
-	if err := db.Model(&models.TourPackageDeparture{}).Where("id = ?", departures[4].ID).Update("booking_closes_at", time.Now().Add(-time.Minute)).Error; err != nil {
+	if err := db.Model(&models.TourPackageDeparture{}).Where("id = ?", departures[4].ID).Update("compras_cierran_en", time.Now().Add(-time.Minute)).Error; err != nil {
 		t.Fatal(err)
 	}
 	marked, err := services.MarkMinimumReviews(db, time.Now())

@@ -64,34 +64,34 @@ type publicPackageDetail struct {
 
 func packagePublicScope(db *gorm.DB) *gorm.DB {
 	return db.Model(&models.TourPackage{}).
-		Joins("JOIN agencies catalog_agency ON catalog_agency.id = tour_packages.agency_id").
-		Where("tour_packages.published = TRUE AND catalog_agency.status = ? AND catalog_agency.published = TRUE", models.StatusActive)
+		Joins("JOIN agencias catalog_agency ON catalog_agency.id = paquetes_turisticos.agencia_id").
+		Where("paquetes_turisticos.publicado = TRUE AND catalog_agency.estado = ? AND catalog_agency.publicado = TRUE", models.StatusActive)
 }
 
 func packageCatalogQuery(db *gorm.DB) *gorm.DB {
 	return db.
 		Preload("Agency", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id", "name", "department", "city", "minimum_paying_age")
+			return tx.Select("id", "nombre", "departamento", "ciudad", "edad_minima_pago")
 		}).
 		Preload("Photos", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id", "package_id", "position").Order("position, id")
+			return tx.Select("id", "paquete_id", "posicion").Order("posicion, id")
 		}).
 		Preload("Schedule", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id", "package_id", "frequency_type")
+			return tx.Select("id", "paquete_id", "tipo_frecuencia")
 		})
 }
 
 func packagePublicDetailQuery(db *gorm.DB, now time.Time) *gorm.DB {
 	return packageCatalogQuery(db).
-		Preload("Itinerary", func(tx *gorm.DB) *gorm.DB { return tx.Order("day_number, id") }).
+		Preload("Itinerary", func(tx *gorm.DB) *gorm.DB { return tx.Order("numero_dia, id") }).
 		Preload("Itinerary.Attractions", func(tx *gorm.DB) *gorm.DB {
-			return tx.Where("EXISTS (SELECT 1 FROM attractions a WHERE a.id = tour_package_itinerary_attractions.attraction_id AND a.status = ? AND a.published = TRUE)", models.StatusActive).Order("position")
+			return tx.Where("EXISTS (SELECT 1 FROM atracciones a WHERE a.id = atracciones_itinerario_paquete.atraccion_id AND a.estado = ? AND a.publicado = TRUE)", models.StatusActive).Order("posicion")
 		}).
 		Preload("Itinerary.Attractions.Attraction", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id", "name", "department", "city")
+			return tx.Select("id", "nombre", "departamento", "ciudad")
 		}).
 		Preload("Departures", func(tx *gorm.DB) *gorm.DB {
-			return tx.Where("starts_at > ? AND status IN ?", now, []string{"open", "confirmed", "closed"}).Order("starts_at, id").Limit(400)
+			return tx.Where("salida_en > ? AND estado IN ?", now, []string{"open", "confirmed", "closed"}).Order("salida_en, id").Limit(400)
 		})
 }
 
@@ -242,22 +242,22 @@ func (h *PackageHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	q := packagePublicScope(h.db)
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
 		pattern := "%" + escapeLike(strings.ToLower(search)) + "%"
-		q = q.Where("LOWER(tour_packages.name || ' ' || tour_packages.description || ' ' || catalog_agency.name || ' ' || catalog_agency.city) LIKE ? ESCAPE '!'", pattern)
+		q = q.Where("LOWER(paquetes_turisticos.nombre || ' ' || paquetes_turisticos.descripcion || ' ' || catalog_agency.nombre || ' ' || catalog_agency.ciudad) LIKE ? ESCAPE '!'", pattern)
 	}
 	if department != "" {
-		q = q.Where("catalog_agency.department = ?", department)
+		q = q.Where("catalog_agency.departamento = ?", department)
 	}
 	if difficulty != "" {
-		q = q.Where("tour_packages.difficulty = ?", difficulty)
+		q = q.Where("paquetes_turisticos.dificultad = ?", difficulty)
 	}
 	if minDuration != nil {
-		q = q.Where("tour_packages.duration_days >= ?", *minDuration)
+		q = q.Where("paquetes_turisticos.duracion_dias >= ?", *minDuration)
 	}
 	if maxDuration != nil {
-		q = q.Where("tour_packages.duration_days <= ?", *maxDuration)
+		q = q.Where("paquetes_turisticos.duracion_dias <= ?", *maxDuration)
 	}
 	if maxPrice != nil {
-		q = q.Where("tour_packages.national_price_cents <= ?", *maxPrice)
+		q = q.Where("paquetes_turisticos.precio_nacional_centavos <= ?", *maxPrice)
 	}
 	departureConditions := "d.package_id = tour_packages.id AND d.starts_at > ? AND d.status IN ('open','confirmed','closed')"
 	departureArgs := []any{now}
@@ -270,10 +270,10 @@ func (h *PackageHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		departureArgs = append(departureArgs, *dateUntil)
 	}
 	if dateFrom != nil || dateUntil != nil {
-		q = q.Where("EXISTS (SELECT 1 FROM tour_package_departures d WHERE "+departureConditions+")", departureArgs...)
+		q = q.Where("EXISTS (SELECT 1 FROM salidas_paquete d WHERE "+departureConditions+")", departureArgs...)
 	}
 	if bookableOnly == "true" {
-		q = q.Where("EXISTS (SELECT 1 FROM tour_package_departures d WHERE d.package_id = tour_packages.id AND d.starts_at > ? AND d.booking_opens_at <= ? AND d.booking_closes_at > ? AND d.status IN ('open','confirmed') AND d.held_capacity + d.confirmed_capacity < d.max_capacity)", now, now, now)
+		q = q.Where("EXISTS (SELECT 1 FROM salidas_paquete d WHERE d.paquete_id = paquetes_turisticos.id AND d.salida_en > ? AND d.compras_abren_en <= ? AND d.compras_cierran_en > ? AND d.estado IN ('open','confirmed') AND d.cupos_reservados + d.cupos_confirmados < d.cupo_maximo)", now, now, now)
 	}
 
 	var total int64
@@ -283,13 +283,13 @@ func (h *PackageHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	switch sort {
 	case "price_asc":
-		q = q.Order("tour_packages.national_price_cents ASC, tour_packages.id DESC")
+		q = q.Order("paquetes_turisticos.precio_nacional_centavos ASC, paquetes_turisticos.id DESC")
 	case "price_desc":
-		q = q.Order("tour_packages.national_price_cents DESC, tour_packages.id DESC")
+		q = q.Order("paquetes_turisticos.precio_nacional_centavos DESC, paquetes_turisticos.id DESC")
 	case "newest":
-		q = q.Order("tour_packages.created_at DESC, tour_packages.id DESC")
+		q = q.Order("paquetes_turisticos.creado_en DESC, paquetes_turisticos.id DESC")
 	default:
-		q = q.Order("(SELECT MIN(d.starts_at) FROM tour_package_departures d WHERE d.package_id = tour_packages.id AND d.starts_at > NOW() AND d.status IN ('open','confirmed','closed')) ASC NULLS LAST, tour_packages.id DESC")
+		q = q.Order("(SELECT MIN(d.salida_en) FROM salidas_paquete d WHERE d.paquete_id = paquetes_turisticos.id AND d.salida_en > NOW() AND d.estado IN ('open','confirmed','closed')) ASC NULLS LAST, paquetes_turisticos.id DESC")
 	}
 	var packages []models.TourPackage
 	if err := packageCatalogQuery(q).Limit(limit).Offset((page - 1) * limit).Find(&packages).Error; err != nil {
@@ -304,7 +304,7 @@ func (h *PackageHandler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	departuresByPackage := map[uint64][]models.TourPackageDeparture{}
 	if len(ids) > 0 {
 		var departures []models.TourPackageDeparture
-		if err := h.db.Where("package_id IN ? AND starts_at > ? AND status IN ?", ids, now, []string{"open", "confirmed", "closed"}).Order("package_id, starts_at, id").Find(&departures).Error; err != nil {
+		if err := h.db.Where("paquete_id IN ? AND salida_en > ? AND estado IN ?", ids, now, []string{"open", "confirmed", "closed"}).Order("paquete_id, salida_en, id").Find(&departures).Error; err != nil {
 			packageError(w, r, err)
 			return
 		}
@@ -361,8 +361,8 @@ func (h *PackageHandler) PhotoPublic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var photo models.TourPackagePhoto
-	permitted := packagePublicScope(h.db).Select("tour_packages.id").Where("tour_packages.id = ?", id)
-	if err := h.db.Where("id = ? AND package_id IN (?)", photoID, permitted).First(&photo).Error; err != nil {
+	permitted := packagePublicScope(h.db).Select("paquetes_turisticos.id").Where("paquetes_turisticos.id = ?", id)
+	if err := h.db.Where("id = ? AND paquete_id IN (?)", photoID, permitted).First(&photo).Error; err != nil {
 		packageError(w, r, err)
 		return
 	}

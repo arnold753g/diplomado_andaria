@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -14,29 +15,36 @@ import (
 )
 
 type Config struct {
-	AppEnv              string
-	LogLevel            slog.Level
-	ServerHost          string
-	ServerPort          string
-	DatabaseDSN         string
-	AutoMigrate         bool
-	AllowedOrigins      []string
-	TrustProxy          bool
-	SessionSecret       string
-	SessionTTL          time.Duration
-	SessionIdleTimeout  time.Duration
-	CookieSecure        bool
-	CookieSameSite      http.SameSite
-	PasswordBcryptCost  int
-	LoginMaxAttempts    int
-	LoginLockout        time.Duration
-	AuthRatePerMinute   int
-	APIRatePerMinute    int
-	RegistrationEnabled bool
-	GoogleClientID      string
-	GoogleClientSecret  string
-	GoogleRedirectURL   string
-	FrontendURL         string
+	AppEnv                    string
+	LogLevel                  slog.Level
+	ServerHost                string
+	ServerPort                string
+	DatabaseDSN               string
+	AutoMigrate               bool
+	AllowedOrigins            []string
+	TrustProxy                bool
+	TrustedProxyCIDRs         []string
+	SessionSecret             string
+	SessionTTL                time.Duration
+	SessionIdleTimeout        time.Duration
+	CookieSecure              bool
+	CookieSameSite            http.SameSite
+	PasswordBcryptCost        int
+	LoginMaxAttempts          int
+	LoginLockout              time.Duration
+	AuthRatePerMinute         int
+	APIRatePerMinute          int
+	RegistrationEnabled       bool
+	GoogleClientID            string
+	GoogleClientSecret        string
+	GoogleRedirectURL         string
+	FrontendURL               string
+	EmailVerificationRequired bool
+	SMTPHost                  string
+	SMTPPort                  string
+	SMTPUsername              string
+	SMTPPassword              string
+	SMTPFrom                  string
 }
 
 func Load() (Config, error) {
@@ -118,27 +126,56 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	if appEnv == "production" && autoMigrate {
+		return Config{}, fmt.Errorf("production migrations must run separately from the API")
+	}
 	trustProxy, err := boolean("TRUST_PROXY", false)
 	if err != nil {
 		return Config{}, err
+	}
+	var proxyCIDRs []string
+	if trustProxy {
+		for _, raw := range strings.Split(value("TRUSTED_PROXY_CIDRS", ""), ",") {
+			prefix, parseErr := netip.ParsePrefix(strings.TrimSpace(raw))
+			if parseErr != nil || prefix.Bits() == 0 {
+				return Config{}, fmt.Errorf("TRUST_PROXY requires explicit TRUSTED_PROXY_CIDRS, without wildcard networks")
+			}
+			proxyCIDRs = append(proxyCIDRs, prefix.String())
+		}
 	}
 	registration, err := boolean("REGISTRATION_ENABLED", appEnv != "production")
 	if err != nil {
 		return Config{}, err
 	}
+	verifyEmail, err := boolean("EMAIL_VERIFICATION_REQUIRED", appEnv == "production")
+	if err != nil {
+		return Config{}, err
+	}
+	if appEnv == "production" && registration && !verifyEmail {
+		return Config{}, fmt.Errorf("public password registration requires email verification in production")
+	}
+	if registration && verifyEmail && value("SMTP_HOST", "") != "" {
+		if err := validateMailConfig(value("SMTP_HOST", ""), value("SMTP_PORT", "587"), value("SMTP_FROM", "")); err != nil {
+			return Config{}, err
+		}
+	}
 
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		value("DB_HOST", "localhost"), value("DB_PORT", "5432"), value("DB_USER", "starter"),
-		dbPassword, value("DB_NAME", "starter"), value("DB_SSLMODE", "disable"))
+		dsnValue(value("DB_HOST", "localhost")), dsnValue(value("DB_PORT", "5432")), dsnValue(value("DB_USER", "starter")),
+		dsnValue(dbPassword), dsnValue(value("DB_NAME", "starter")), dsnValue(value("DB_SSLMODE", "disable")))
 
 	googleID, googleSecret := value("GOOGLE_CLIENT_ID", ""), value("GOOGLE_CLIENT_SECRET", "")
 	googleRedirect := value("GOOGLE_REDIRECT_URL", "")
 	frontendURL := value("FRONTEND_URL", origins[0])
-	if googleID != "" || googleSecret != "" || googleRedirect != "" {
-		if googleID == "" || googleSecret == "" || googleRedirect == "" {
+	if googleID != "" || googleSecret != "" || googleRedirect != "" || (registration && verifyEmail) {
+		if (googleID != "" || googleSecret != "" || googleRedirect != "") && (googleID == "" || googleSecret == "" || googleRedirect == "") {
 			return Config{}, fmt.Errorf("Google login requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URL")
 		}
-		for _, raw := range []string{frontendURL, googleRedirect} {
+		urls := []string{frontendURL}
+		if googleRedirect != "" {
+			urls = append(urls, googleRedirect)
+		}
+		for _, raw := range urls {
 			u, err := url.Parse(raw)
 			if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && !(appEnv != "production" && u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1"))) {
 				return Config{}, fmt.Errorf("Google callback and frontend URLs require HTTPS (HTTP localhost allowed in development)")
@@ -158,11 +195,14 @@ func Load() (Config, error) {
 		AppEnv: appEnv, LogLevel: logLevel(value("LOG_LEVEL", defaultLogLevel(appEnv))),
 		ServerHost: value("SERVER_HOST", "127.0.0.1"), ServerPort: value("SERVER_PORT", "8080"),
 		DatabaseDSN: dsn, AutoMigrate: autoMigrate, AllowedOrigins: origins, TrustProxy: trustProxy,
-		SessionSecret: sessionSecret, SessionTTL: ttl, SessionIdleTimeout: idle,
+		TrustedProxyCIDRs: proxyCIDRs,
+		SessionSecret:     sessionSecret, SessionTTL: ttl, SessionIdleTimeout: idle,
 		CookieSecure: cookieSecure, CookieSameSite: sameSite, PasswordBcryptCost: cost,
 		LoginMaxAttempts: maxAttempts, LoginLockout: lockout, AuthRatePerMinute: authRate,
 		APIRatePerMinute: apiRate, RegistrationEnabled: registration,
 		GoogleClientID: googleID, GoogleClientSecret: googleSecret, GoogleRedirectURL: googleRedirect, FrontendURL: strings.TrimRight(frontendURL, "/"),
+		EmailVerificationRequired: verifyEmail, SMTPHost: value("SMTP_HOST", ""), SMTPPort: value("SMTP_PORT", "587"),
+		SMTPUsername: value("SMTP_USERNAME", ""), SMTPPassword: os.Getenv("SMTP_PASSWORD"), SMTPFrom: value("SMTP_FROM", ""),
 	}, nil
 }
 
@@ -172,6 +212,10 @@ func required(key string) (string, error) {
 		return "", fmt.Errorf("%s is required", key)
 	}
 	return v, nil
+}
+
+func dsnValue(value string) string {
+	return "'" + strings.ReplaceAll(strings.ReplaceAll(value, "\\", "\\\\"), "'", "\\'") + "'"
 }
 
 func value(key, fallback string) string {

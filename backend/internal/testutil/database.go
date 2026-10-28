@@ -14,6 +14,18 @@ import (
 )
 
 func Database(t *testing.T) *gorm.DB {
+	db := UnmigratedDatabase(t)
+	if err := database.Migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Migrate(db); err != nil {
+		t.Fatalf("migration is not idempotent: %v", err)
+	}
+	return db
+}
+
+// UnmigratedDatabase provides an empty isolated schema for migration upgrade tests.
+func UnmigratedDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_DSN")
 	if dsn == "" {
@@ -46,11 +58,5 @@ func Database(t *testing.T) *gorm.DB {
 	})
 	db := open(dsn + " search_path=" + schema)
 	t.Cleanup(func() { _ = database.Close(db) })
-	if err := database.Migrate(db); err != nil {
-		t.Fatal(err)
-	}
-	if err := database.Migrate(db); err != nil {
-		t.Fatalf("migration is not idempotent: %v", err)
-	}
 	return db
 }

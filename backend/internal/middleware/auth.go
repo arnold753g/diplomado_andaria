@@ -51,7 +51,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 		}
 
 		var session models.Session
-		err = a.db.Preload("User").Where("token_hash = ? AND revoked_at IS NULL", security.HashToken(cookie.Value)).First(&session).Error
+		err = a.db.Preload("User").Where("hash_token = ? AND revocado_en IS NULL", security.HashToken(cookie.Value)).First(&session).Error
 		if err != nil {
 			respond.Error(w, r, http.StatusUnauthorized, "INVALID_SESSION", "Session is invalid or expired", nil)
 			return
@@ -62,7 +62,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			deadline = session.ExpiresAt
 		}
 		if !now.Before(deadline) || session.User.Status != models.StatusActive {
-			_ = a.db.Model(&models.Session{}).Where("id = ? AND revoked_at IS NULL", session.ID).Update("revoked_at", now).Error
+			_ = a.db.Model(&models.Session{}).Where("id = ? AND revocado_en IS NULL", session.ID).Update("revocado_en", now).Error
 			respond.Error(w, r, http.StatusUnauthorized, "SESSION_EXPIRED", "Session is invalid or expired", nil)
 			return
 		}
@@ -72,8 +72,8 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 		}
 		if now.Sub(session.LastActivityAt) >= activityWriteInterval {
 			result := a.db.Model(&models.Session{}).
-				Where("id = ? AND revoked_at IS NULL AND expires_at > ?", session.ID, now).
-				Update("last_activity_at", now)
+				Where("id = ? AND revocado_en IS NULL AND vence_en > ?", session.ID, now).
+				Update("ultima_actividad_en", now)
 			if result.Error != nil || result.RowsAffected != 1 {
 				respond.Error(w, r, http.StatusUnauthorized, "INVALID_SESSION", "Session is invalid or expired", nil)
 				return
@@ -119,7 +119,7 @@ func RequireRoles(roles ...string) func(http.Handler) http.Handler {
 
 func RevokeUserSessions(db *gorm.DB, userID uint64) error {
 	now := time.Now().UTC()
-	return db.Model(&models.Session{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", now).Error
+	return db.Model(&models.Session{}).Where("usuario_id = ? AND revocado_en IS NULL", userID).Update("revocado_en", now).Error
 }
 
 func unsafeMethod(method string) bool {

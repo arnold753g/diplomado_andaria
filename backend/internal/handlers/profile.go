@@ -55,8 +55,8 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.db.Model(&models.User{}).Where("id = ?", principal.User.ID).
-		Updates(map[string]any{"first_name": request.FirstName, "last_name": request.LastName,
-			"phone": strings.TrimSpace(request.Phone), "document_number": strings.TrimSpace(request.DocumentNumber), "nationality": strings.TrimSpace(request.Nationality)}).Error; err != nil {
+		Updates(map[string]any{"nombres": request.FirstName, "apellidos": request.LastName,
+			"telefono": strings.TrimSpace(request.Phone), "numero_documento": strings.TrimSpace(request.DocumentNumber), "nacionalidad": strings.TrimSpace(request.Nationality)}).Error; err != nil {
 		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Profile could not be updated", nil)
 		return
 	}

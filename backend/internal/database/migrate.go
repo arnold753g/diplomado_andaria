@@ -14,6 +14,9 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
+//go:embed ledger.sql
+var migrationLedgerSQL string
+
 type migration struct {
 	version int64
 	name    string
@@ -21,11 +24,11 @@ type migration struct {
 }
 
 func Migrate(db *gorm.DB) error {
-	if err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		version BIGINT PRIMARY KEY,
-		name TEXT NOT NULL,
-		applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	)`).Error; err != nil {
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		// Upgrade the ledger before reading versions, so existing installations
+		// never replay historical migrations against an already populated schema.
+		return tx.Exec(migrationLedgerSQL).Error
+	}); err != nil {
 		return fmt.Errorf("create migration ledger: %w", err)
 	}
 	entries, err := fs.ReadDir(migrations, "migrations")
@@ -55,7 +58,7 @@ func Migrate(db *gorm.DB) error {
 
 	for _, item := range list {
 		var count int64
-		if err := db.Table("schema_migrations").Where("version = ?", item.version).Count(&count).Error; err != nil {
+		if err := db.Table("migraciones_esquema").Where("version = ?", item.version).Count(&count).Error; err != nil {
 			return fmt.Errorf("check migration %d: %w", item.version, err)
 		}
 		if count > 0 {
@@ -65,7 +68,7 @@ func Migrate(db *gorm.DB) error {
 			if err := tx.Exec(item.sql).Error; err != nil {
 				return err
 			}
-			return tx.Exec("INSERT INTO schema_migrations (version, name) VALUES (?, ?)", item.version, item.name).Error
+			return tx.Exec("INSERT INTO migraciones_esquema (version, nombre) VALUES (?, ?)", item.version, item.name).Error
 		}); err != nil {
 			return fmt.Errorf("apply migration %s: %w", item.name, err)
 		}

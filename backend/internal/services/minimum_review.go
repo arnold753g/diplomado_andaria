@@ -13,12 +13,12 @@ import (
 // The assigned agency manager must explicitly confirm the cancellation.
 func MarkMinimumReviews(db *gorm.DB, now time.Time) (int64, error) {
 	result := db.Model(&models.TourPackageDeparture{}).
-		Where("status IN ? AND booking_closes_at <= ? AND starts_at > ? AND confirmed_capacity < min_capacity", []string{"open", "confirmed"}, now, now).
+		Where("estado IN ? AND compras_cierran_en <= ? AND salida_en > ? AND cupos_confirmados < cupo_minimo", []string{"open", "confirmed"}, now, now).
 		Updates(map[string]any{
-			"status":            "minimum_review",
-			"minimum_review_at": now.UTC(),
-			"is_exception":      true,
-			"version":           gorm.Expr("version + 1"),
+			"estado":             "minimum_review",
+			"revision_minimo_en": now.UTC(),
+			"es_excepcion":       true,
+			"version":            gorm.Expr("version + 1"),
 		})
 	return result.RowsAffected, result.Error
 }

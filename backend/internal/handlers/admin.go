@@ -27,14 +27,14 @@ func (h *AdminHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 		query *gorm.DB
 	}{
 		{"users", h.db.Model(&models.User{})},
-		{"active_users", h.db.Model(&models.User{}).Where("status = ?", models.StatusActive)},
-		{"active_admins", h.db.Model(&models.User{}).Where("role = ? AND status = ?", models.RoleAdmin, models.StatusActive)},
+		{"active_users", h.db.Model(&models.User{}).Where("estado = ?", models.StatusActive)},
+		{"active_admins", h.db.Model(&models.User{}).Where("rol = ? AND estado = ?", models.RoleAdmin, models.StatusActive)},
 		{"agencies", h.db.Model(&models.Agency{})},
-		{"published_agencies", h.db.Model(&models.Agency{}).Where("status = ? AND published = TRUE", models.StatusActive)},
+		{"published_agencies", h.db.Model(&models.Agency{}).Where("estado = ? AND publicado = TRUE", models.StatusActive)},
 		{"attractions", h.db.Model(&models.Attraction{})},
-		{"published_attractions", h.db.Model(&models.Attraction{}).Where("status = ? AND published = TRUE", models.StatusActive)},
+		{"published_attractions", h.db.Model(&models.Attraction{}).Where("estado = ? AND publicado = TRUE", models.StatusActive)},
 		{"packages", h.db.Model(&models.TourPackage{})},
-		{"published_packages", h.db.Model(&models.TourPackage{}).Where("published = TRUE")},
+		{"published_packages", h.db.Model(&models.TourPackage{}).Where("publicado = TRUE")},
 		{"purchases", h.db.Model(&models.TourPackagePurchase{})},
 	}
 	for _, item := range queries {
@@ -55,21 +55,21 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	query := h.db.Model(&models.User{})
 	if search != "" {
 		like := "%" + escapeLike(strings.ToLower(search)) + "%"
-		query = query.Where("LOWER(email) LIKE ? ESCAPE '!' OR LOWER(first_name || ' ' || last_name) LIKE ? ESCAPE '!'", like, like)
+		query = query.Where("LOWER(correo) LIKE ? ESCAPE '!' OR LOWER(nombres || ' ' || apellidos) LIKE ? ESCAPE '!'", like, like)
 	}
 	if role := strings.TrimSpace(r.URL.Query().Get("role")); role != "" {
 		if !validRole(role) {
 			respond.Error(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Invalid role filter", nil)
 			return
 		}
-		query = query.Where("role = ?", role)
+		query = query.Where("rol = ?", role)
 	}
 	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" {
 		if !validStatus(status) {
 			respond.Error(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Invalid status filter", nil)
 			return
 		}
-		query = query.Where("status = ?", status)
+		query = query.Where("estado = ?", status)
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -77,7 +77,7 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var users []models.User
-	if err := query.Order("created_at DESC").Offset((page - 1) * limit).Limit(limit).Find(&users).Error; err != nil {
+	if err := query.Order("creado_en DESC").Offset((page - 1) * limit).Limit(limit).Find(&users).Error; err != nil {
 		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Users could not be loaded", nil)
 		return
 	}
@@ -126,7 +126,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		if err := guardLastAdmin(tx, id, request.Role, ""); err != nil {
 			return err
 		}
-		result := tx.Model(&models.User{}).Where("id = ?", id).Update("role", request.Role)
+		result := tx.Model(&models.User{}).Where("id = ?", id).Update("rol", request.Role)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -134,7 +134,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 			return gorm.ErrRecordNotFound
 		}
 		now := time.Now().UTC()
-		return tx.Model(&models.Session{}).Where("user_id = ? AND revoked_at IS NULL", id).Update("revoked_at", now).Error
+		return tx.Model(&models.Session{}).Where("usuario_id = ? AND revocado_en IS NULL", id).Update("revocado_en", now).Error
 	}); err != nil {
 		handleAdminMutationError(w, r, err)
 		return
@@ -161,7 +161,7 @@ func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		if err := guardLastAdmin(tx, id, "", request.Status); err != nil {
 			return err
 		}
-		result := tx.Model(&models.User{}).Where("id = ?", id).Update("status", request.Status)
+		result := tx.Model(&models.User{}).Where("id = ?", id).Update("estado", request.Status)
 		if result.Error != nil {
 			return result.Error
 		}
@@ -170,7 +170,7 @@ func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		if request.Status == models.StatusInactive {
 			now := time.Now().UTC()
-			return tx.Model(&models.Session{}).Where("user_id = ? AND revoked_at IS NULL", id).Update("revoked_at", now).Error
+			return tx.Model(&models.Session{}).Where("usuario_id = ? AND revocado_en IS NULL", id).Update("revocado_en", now).Error
 		}
 		return nil
 	}); err != nil {
@@ -258,7 +258,7 @@ func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
 	}
 	if user.Role == models.RoleAttraction && role != models.RoleAttraction {
 		var assigned int64
-		if err := tx.Model(&models.Attraction{}).Where("manager_id = ?", id).Count(&assigned).Error; err != nil {
+		if err := tx.Model(&models.Attraction{}).Where("encargado_id = ?", id).Count(&assigned).Error; err != nil {
 			return err
 		}
 		if assigned > 0 {
@@ -267,7 +267,7 @@ func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
 	}
 	if user.Role == models.RoleAgency && role != models.RoleAgency {
 		var assigned int64
-		if err := tx.Model(&models.Agency{}).Where("manager_id = ?", id).Count(&assigned).Error; err != nil {
+		if err := tx.Model(&models.Agency{}).Where("encargado_id = ?", id).Count(&assigned).Error; err != nil {
 			return err
 		}
 		if assigned > 0 {
@@ -276,7 +276,7 @@ func guardLastAdmin(tx *gorm.DB, id uint64, role, status string) error {
 	}
 	if user.Role == models.RoleAdmin && user.Status == models.StatusActive && (role != models.RoleAdmin || status != models.StatusActive) {
 		var count int64
-		if err := tx.Model(&models.User{}).Where("role = ? AND status = ?", models.RoleAdmin, models.StatusActive).Count(&count).Error; err != nil {
+		if err := tx.Model(&models.User{}).Where("rol = ? AND estado = ?", models.RoleAdmin, models.StatusActive).Count(&count).Error; err != nil {
 			return err
 		}
 		if count <= 1 {
@@ -316,7 +316,7 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		revoke := original.Role != request.Role || request.Status == models.StatusInactive
-		if err := tx.Model(&original).Updates(map[string]any{"first_name": request.FirstName, "last_name": request.LastName, "phone": strings.TrimSpace(request.Phone), "document_number": strings.TrimSpace(request.DocumentNumber), "nationality": strings.TrimSpace(request.Nationality), "role": request.Role, "status": request.Status}).Error; err != nil {
+		if err := tx.Model(&original).Updates(map[string]any{"nombres": request.FirstName, "apellidos": request.LastName, "telefono": strings.TrimSpace(request.Phone), "numero_documento": strings.TrimSpace(request.DocumentNumber), "nacionalidad": strings.TrimSpace(request.Nationality), "rol": request.Role, "estado": request.Status}).Error; err != nil {
 			return err
 		}
 		if revoke {

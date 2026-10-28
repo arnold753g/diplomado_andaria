@@ -56,7 +56,7 @@ func TestGoogleIdentityCreationAndExplicitLink(t *testing.T) {
 	if local.Role != models.RoleAgency || local.GoogleSubject == nil {
 		t.Fatal("linking changed role or was not persisted")
 	}
-	db.Model(&local).Update("status", models.StatusInactive)
+	db.Model(&local).Update("estado", models.StatusInactive)
 	if _, err := h.resolveGoogleUser(identity, oauthAttempt{}); err == nil || err.Error() != "inactive" {
 		t.Fatal("inactive Google account logged in")
 	}

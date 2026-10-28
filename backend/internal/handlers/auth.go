@@ -25,6 +25,7 @@ type AuthHandler struct {
 	dummyHash            string
 	googleClient         *http.Client
 	googleMobileVerifier func(context.Context, string, string) (googleIdentity, error)
+	sendVerification     func(context.Context, string, string) error
 }
 
 func NewAuthHandler(db *gorm.DB, cfg config.Config) (*AuthHandler, error) {
@@ -32,7 +33,9 @@ func NewAuthHandler(db *gorm.DB, cfg config.Config) (*AuthHandler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &AuthHandler{db: db, cfg: cfg, validate: validator.New(), dummyHash: dummyHash}, nil
+	h := &AuthHandler{db: db, cfg: cfg, validate: validator.New(), dummyHash: dummyHash}
+	h.sendVerification = h.sendVerificationMail
+	return h, nil
 }
 
 type registerRequest struct {
@@ -83,6 +86,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, r, http.StatusUnprocessableEntity, "PASSWORD_POLICY", security.ErrPasswordPolicy.Error(), map[string]string{"password": security.ErrPasswordPolicy.Error()})
 		return
 	}
+	if h.cfg.EmailVerificationRequired {
+		h.registerPending(w, r, request, hash)
+		return
+	}
 	user := models.User{Email: request.Email, PasswordHash: hash, FirstName: request.FirstName,
 		LastName: request.LastName, Role: models.RoleUser, Status: models.StatusActive,
 		Phone: strings.TrimSpace(request.Phone), DocumentNumber: strings.TrimSpace(request.DocumentNumber), Nationality: strings.TrimSpace(request.Nationality)}
@@ -109,7 +116,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user models.User
-	err := h.db.Where("email = ?", request.Email).First(&user).Error
+	err := h.db.Where("correo = ?", request.Email).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		_ = security.CheckPassword(request.Password, h.dummyHash)
 		respond.Error(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Email or password is incorrect", nil)
@@ -119,32 +126,56 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Login could not be completed", nil)
 		return
 	}
-	now := time.Now().UTC()
 	passwordValid := security.CheckPassword(request.Password, user.PasswordHash)
-	if user.LockedUntil != nil && now.Before(*user.LockedUntil) && passwordValid {
-		respond.Error(w, r, http.StatusTooManyRequests, "ACCOUNT_LOCKED", "Too many failed attempts; try again later", nil)
-		return
-	}
-	if !passwordValid {
-		attempts := user.FailedLoginAttempts + 1
-		updates := map[string]any{"failed_login_attempts": attempts}
-		if attempts >= h.cfg.LoginMaxAttempts {
-			updates["locked_until"] = now.Add(h.cfg.LoginLockout)
-			updates["failed_login_attempts"] = 0
+	status := http.StatusUnauthorized
+	// Hashing stays outside the row lock. Recheck the hash under the lock so a
+	// concurrent password change cannot authenticate stale credentials.
+	err = h.db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+		var current models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, user.ID).Error; err != nil {
+			return err
 		}
-		_ = h.db.Model(&models.User{}).Where("id = ?", user.ID).Updates(updates).Error
-		respond.Error(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Email or password is incorrect", nil)
+		if current.PasswordHash != user.PasswordHash {
+			return nil
+		}
+		now := time.Now().UTC()
+		if current.LockedUntil != nil && now.Before(*current.LockedUntil) {
+			if passwordValid {
+				status = http.StatusTooManyRequests
+			}
+			return nil // Failed requests must not prolong an existing lockout.
+		}
+		if !passwordValid {
+			attempts := current.FailedLoginAttempts + 1
+			updates := map[string]any{"intentos_fallidos_acceso": attempts, "bloqueado_hasta": nil}
+			if attempts >= h.cfg.LoginMaxAttempts {
+				updates["bloqueado_hasta"] = now.Add(h.cfg.LoginLockout)
+				updates["intentos_fallidos_acceso"] = 0
+			}
+			return tx.Model(&current).Updates(updates).Error
+		}
+		if current.Status != models.StatusActive {
+			status = http.StatusForbidden
+			return nil
+		}
+		user = current
+		status = http.StatusOK
+		return tx.Model(&current).Updates(map[string]any{"intentos_fallidos_acceso": 0, "bloqueado_hasta": nil, "ultimo_acceso_en": now}).Error
+	})
+	if err != nil {
+		respond.Error(w, r, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Login could not be completed; try again later", nil)
 		return
 	}
-	if user.Status != models.StatusActive {
+	if status == http.StatusUnauthorized {
+		respond.Error(w, r, status, "INVALID_CREDENTIALS", "Email or password is incorrect", nil)
+		return
+	}
+	if status == http.StatusTooManyRequests {
+		respond.Error(w, r, status, "ACCOUNT_LOCKED", "Too many failed attempts; try again later", nil)
+		return
+	}
+	if status == http.StatusForbidden {
 		respond.Error(w, r, http.StatusForbidden, "ACCOUNT_INACTIVE", "This account is inactive", nil)
-		return
-	}
-	user.FailedLoginAttempts = 0
-	user.LockedUntil = nil
-	user.LastLoginAt = &now
-	if err := h.db.Model(&user).Updates(map[string]any{"failed_login_attempts": 0, "locked_until": nil, "last_login_at": now}).Error; err != nil {
-		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Login could not be completed", nil)
 		return
 	}
 	response, err := h.issueSession(w, r, &user)
@@ -162,7 +193,7 @@ func (h *AuthHandler) Session(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var session models.Session
-	if err := h.db.Where("id = ? AND revoked_at IS NULL", principal.SessionID).First(&session).Error; err != nil {
+	if err := h.db.Where("id = ? AND revocado_en IS NULL", principal.SessionID).First(&session).Error; err != nil {
 		respond.Error(w, r, http.StatusUnauthorized, "INVALID_SESSION", "Session is invalid or expired", nil)
 		return
 	}
@@ -181,10 +212,18 @@ func (h *AuthHandler) Session(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	principal, _ := middleware.CurrentPrincipal(r)
+	principal, ok := middleware.CurrentPrincipal(r)
+	if !ok {
+		respond.Error(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication is required", nil)
+		return
+	}
 	now := time.Now().UTC()
-	_ = h.db.Model(&models.Session{}).Where("id = ? AND revoked_at IS NULL", principal.SessionID).Update("revoked_at", now).Error
+	err := h.db.WithContext(r.Context()).Model(&models.Session{}).Where("id = ? AND revocado_en IS NULL", principal.SessionID).Update("revocado_en", now).Error
 	h.clearCookie(w)
+	if err != nil {
+		respond.Error(w, r, http.StatusServiceUnavailable, "LOGOUT_UNAVAILABLE", "Se borró el acceso local, pero no se pudo confirmar el cierre de sesión en el servidor", nil)
+		return
+	}
 	respond.JSON(w, http.StatusOK, nil, "Signed out")
 }
 
@@ -223,11 +262,11 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		if current.PasswordHash != principal.User.PasswordHash || current.Status != models.StatusActive {
 			return errors.New("account changed during password update")
 		}
-		if err := tx.Model(&models.User{}).Where("id = ?", principal.User.ID).Update("password_hash", hash).Error; err != nil {
+		if err := tx.Model(&models.User{}).Where("id = ?", principal.User.ID).Update("hash_contrasena", hash).Error; err != nil {
 			return err
 		}
 		now := time.Now().UTC()
-		return tx.Model(&models.Session{}).Where("user_id = ? AND revoked_at IS NULL", principal.User.ID).Update("revoked_at", now).Error
+		return tx.Model(&models.Session{}).Where("usuario_id = ? AND revocado_en IS NULL", principal.User.ID).Update("revocado_en", now).Error
 	}); err != nil {
 		respond.Error(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Password could not be changed", nil)
 		return

@@ -18,10 +18,10 @@ var (
 )
 
 type purchaseRequestRecord struct {
-	TouristID   uint64
-	RequestKey  string
-	PayloadHash string
-	PurchaseID  uint64
+	TouristID   uint64 `gorm:"column:turista_id"`
+	RequestKey  string `gorm:"column:clave_solicitud"`
+	PayloadHash string `gorm:"column:hash_contenido"`
+	PurchaseID  uint64 `gorm:"column:compra_id"`
 }
 
 func purchasePayloadHash(input purchaseCreateInput) string {
@@ -41,7 +41,7 @@ func replayPurchaseRequest(tx *gorm.DB, userID uint64, key, hash string, purchas
 		return false, err
 	}
 	var record purchaseRequestRecord
-	err := tx.Table("purchase_requests").Where("tourist_id = ? AND request_key = ?", userID, key).Take(&record).Error
+	err := tx.Table("solicitudes_compra").Where("turista_id = ? AND clave_solicitud = ?", userID, key).Take(&record).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}
@@ -51,6 +51,6 @@ func replayPurchaseRequest(tx *gorm.DB, userID uint64, key, hash string, purchas
 	if record.PayloadHash != hash {
 		return false, errPurchaseRequestConflict
 	}
-	err = tx.Where("id = ? AND tourist_id = ?", record.PurchaseID, userID).First(purchase).Error
+	err = tx.Where("id = ? AND turista_id = ?", record.PurchaseID, userID).First(purchase).Error
 	return err == nil, err
 }
