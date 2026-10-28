@@ -67,9 +67,9 @@ void main() {
     await tester.tap(find.text('Guardar cambios'));
     await tester.pumpAndSettle();
     expect(api.user!['phone'], '71112223');
-    await tester.tap(find.text('Explorar'));
+    await tester.tap(find.text('Inicio'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Lugares'));
+    await tester.tap(find.text('Atracciones turísticas'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byType(AttractionCard).hitTestable(),
@@ -102,7 +102,7 @@ void main() {
     await tester.tap(find.text('Quitar de favoritos'));
     await tester.pumpAndSettle();
     expect(find.text('Tu lista empieza con un lugar'), findsOneWidget);
-    await tester.tap(find.text('Explorar'));
+    await tester.tap(find.text('Inicio'));
     await tester.pumpAndSettle();
     await tester.drag(
       find
@@ -113,7 +113,7 @@ void main() {
       const Offset(0, 1200),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Experiencias'));
+    await tester.tap(find.text('Paquetes turísticos'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byType(PackageCard),

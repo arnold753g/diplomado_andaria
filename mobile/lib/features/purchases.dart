@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../shared/widgets.dart';
 import '../shared/images.dart';
 import 'auth.dart';
+import 'purchase_receipt.dart';
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -253,6 +254,13 @@ class PurchaseDetailPage extends StatelessWidget {
                       ),
                     if (item.s('rejection_reason').isNotEmpty)
                       Notice(item.s('rejection_reason'), warning: true),
+                    if (item.b('receipt_available'))
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            openPage(context, PurchaseReceiptPage(id: item.id)),
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        label: const Text('Ver comprobante PDF'),
+                      ),
                     if (item.b('has_proof'))
                       OutlinedButton.icon(
                         onPressed: () =>

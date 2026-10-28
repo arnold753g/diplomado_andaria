@@ -68,6 +68,83 @@ void main() {
   }
 
   test(
+    'private PDF sends credentials and validates its media type and signature',
+    () async {
+      await login();
+      var valid = true;
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path != '/me/purchases/1/receipt') {
+              handler.next(options);
+              return;
+            }
+            expect(options.headers['Cookie'], 'starter_session=secret');
+            expect(options.headers['Accept'], 'application/pdf');
+            handler.resolve(
+              Response<List<int>>(
+                requestOptions: options,
+                statusCode: 200,
+                data: valid ? [37, 80, 68, 70, 45, 49] : [123, 125],
+                headers: Headers.fromMap({
+                  'content-type': [
+                    valid ? 'application/pdf' : 'application/json',
+                  ],
+                }),
+              ),
+            );
+          },
+        ),
+      );
+      expect(await api.privatePdf('/me/purchases/1/receipt'), [
+        37,
+        80,
+        68,
+        70,
+        45,
+        49,
+      ]);
+      valid = false;
+      await expectLater(
+        api.privatePdf('/me/purchases/1/receipt'),
+        throwsA(isA<ApiFailure>()),
+      );
+    },
+  );
+  test(
+    'a private PDF arriving after logout cannot be displayed by another session',
+    () async {
+      await login();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) async {
+            if (options.path != '/me/purchases/1/receipt') {
+              handler.next(options);
+              return;
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+            handler.resolve(
+              Response<List<int>>(
+                requestOptions: options,
+                statusCode: 200,
+                data: [37, 80, 68, 70, 45, 49],
+                headers: Headers.fromMap({
+                  'content-type': ['application/pdf'],
+                }),
+              ),
+            );
+          },
+        ),
+      );
+      final downloading = api.privatePdf('/me/purchases/1/receipt');
+      final assertion = expectLater(downloading, throwsA(isA<ApiFailure>()));
+      await api.clear();
+      await login();
+      await assertion;
+      expect(api.signedIn, isTrue);
+    },
+  );
+  test(
     'login persists only the cookie and sends CSRF for protected writes',
     () async {
       await login();

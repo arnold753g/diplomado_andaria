@@ -9,6 +9,8 @@ import '../core/theme.dart';
 import '../shared/widgets.dart';
 import 'auth.dart';
 import 'checkout.dart';
+import 'explore_header.dart';
+import '../shared/brand.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -100,238 +102,174 @@ class _ExplorePageState extends State<ExplorePage> {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    child: RefreshIndicator(
-      onRefresh: load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        children: [
-          Row(
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 840),
+        child: RefreshIndicator(
+          onRefresh: load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: lime,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.explore_outlined),
-              ),
-              const SizedBox(width: 9),
-              const Expanded(
-                child: Text(
-                  'andaria',
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1,
+              ExploreHeader(
+                search: TextField(
+                  controller: search,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar en el catálogo',
+                    hintText: attractions
+                        ? 'Busca una atracción turística'
+                        : 'Busca un paquete turístico',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Limpiar búsqueda',
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              search.clear();
+                              debounce?.cancel();
+                              load();
+                            },
+                          ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Flexible(
-                child: Text(
-                  'BOLIVIA',
-                  style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.w600,
-                    color: muted,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 30),
-          Text(
-            'Sal de la rutina.\nDescubre Bolivia.',
-            style: Theme.of(context).textTheme.headlineLarge,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Tu próxima experiencia, comenzando por Tarija.',
-            style: TextStyle(color: muted),
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: search,
-            decoration: InputDecoration(
-              hintText: '¿Qué te gustaría explorar?',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: search.text.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'Limpiar búsqueda',
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        search.clear();
-                        debounce?.cancel();
-                        load();
-                      },
-                    ),
-            ),
-            onChanged: (_) {
-              setState(() {});
-              debounce?.cancel();
-              debounce = Timer(const Duration(milliseconds: 400), load);
-            },
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('Experiencias'),
-                selected: !attractions,
-                onSelected: (_) {
-                  setState(() {
-                    attractions = false;
-                  });
-                  load();
-                },
-              ),
-              ChoiceChip(
-                label: const Text('Lugares'),
-                selected: attractions,
-                onSelected: (_) {
-                  setState(() {
-                    attractions = true;
-                  });
-                  load();
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              PopupMenuButton<String>(
-                initialValue: department,
-                onSelected: (v) {
-                  setState(() {
-                    department = v;
-                  });
-                  load();
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: '', child: Text('Toda Bolivia')),
-                  ...departments.map(
-                    (v) => PopupMenuItem(value: v, child: Text(v)),
-                  ),
-                ],
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: line),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 18),
-                      const SizedBox(width: 6),
-                      Text(department.isEmpty ? 'Toda Bolivia' : department),
-                      const Icon(Icons.expand_more, size: 18),
-                    ],
-                  ),
-                ),
-              ),
-              if (!attractions)
-                PopupMenuButton<String>(
-                  initialValue: sort,
-                  tooltip: 'Ordenar experiencias',
-                  onSelected: (v) {
-                    setState(() {
-                      sort = v;
-                    });
+                  onSubmitted: (_) {
+                    debounce?.cancel();
                     load();
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'next_departure',
-                      child: Text('Próximas salidas'),
-                    ),
-                    PopupMenuItem(
-                      value: 'price_asc',
-                      child: Text('Menor precio'),
-                    ),
-                    PopupMenuItem(
-                      value: 'price_desc',
-                      child: Text('Mayor precio'),
-                    ),
-                    PopupMenuItem(
-                      value: 'newest',
-                      child: Text('Más recientes'),
-                    ),
-                  ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: line),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.tune, size: 18),
-                        SizedBox(width: 6),
-                        Text('Ordenar'),
-                      ],
+                  onChanged: (_) {
+                    setState(() {});
+                    debounce?.cancel();
+                    debounce = Timer(const Duration(milliseconds: 400), load);
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+              CatalogModules(
+                attractions: attractions,
+                onChanged: (value) {
+                  debounce?.cancel();
+                  setState(() {
+                    attractions = value;
+                  });
+                  load();
+                },
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  PopupMenuButton<String>(
+                    initialValue: department,
+                    tooltip: 'Filtrar por departamento',
+                    onSelected: (value) {
+                      setState(() {
+                        department = value;
+                      });
+                      load();
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: '',
+                        child: Text('Toda Bolivia'),
+                      ),
+                      ...departments.map(
+                        (value) =>
+                            PopupMenuItem(value: value, child: Text(value)),
+                      ),
+                    ],
+                    child: CatalogFilterLabel(
+                      icon: Icons.location_on_outlined,
+                      label: department.isEmpty ? 'Toda Bolivia' : department,
                     ),
                   ),
+                  if (!attractions)
+                    PopupMenuButton<String>(
+                      initialValue: sort,
+                      tooltip: 'Ordenar paquetes',
+                      onSelected: (value) {
+                        setState(() {
+                          sort = value;
+                        });
+                        load();
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'next_departure',
+                          child: Text('Próximas salidas'),
+                        ),
+                        PopupMenuItem(
+                          value: 'price_asc',
+                          child: Text('Menor precio'),
+                        ),
+                        PopupMenuItem(
+                          value: 'price_desc',
+                          child: Text('Mayor precio'),
+                        ),
+                        PopupMenuItem(
+                          value: 'newest',
+                          child: Text('Más recientes'),
+                        ),
+                      ],
+                      child: const CatalogFilterLabel(
+                        icon: Icons.sort,
+                        label: 'Ordenar',
+                      ),
+                    ),
+                ],
+              ),
+              SectionTitle(
+                attractions
+                    ? 'Encuentra tu próxima parada'
+                    : 'Elige tu próxima salida',
+              ),
+              if (!busy && error == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    '${countLabel(total, attractions ? 'atracción turística' : 'paquete turístico', attractions ? 'atracciones turísticas' : 'paquetes turísticos')} ${total == 1 ? 'disponible' : 'disponibles'}',
+                    style: const TextStyle(color: muted),
+                  ),
+                ),
+              ...items.map(
+                (item) => attractions
+                    ? AttractionCard(Attraction(item))
+                    : PackageCard(TravelPackage(item)),
+              ),
+              if (busy)
+                Center(
+                  child: AndariaLoading(
+                    label: attractions
+                        ? 'Cargando atracciones turísticas'
+                        : 'Cargando paquetes turísticos',
+                    compact: true,
+                  ),
+                ),
+              if (error != null)
+                EmptyView(
+                  icon: Icons.wifi_off_outlined,
+                  title: 'No pudimos cargar el catálogo',
+                  description: error is ApiFailure
+                      ? (error as ApiFailure).message
+                      : 'Inténtalo nuevamente.',
+                  action: 'Volver a intentar',
+                  onAction: () => load(more: items.isNotEmpty),
+                ),
+              if (!busy && error == null && items.isEmpty)
+                const EmptyView(
+                  icon: Icons.travel_explore,
+                  title: 'Todavía no encontramos resultados',
+                  description: 'Prueba otra búsqueda o cambia el departamento.',
+                ),
+              if (!busy && error == null && items.length < total)
+                OutlinedButton(
+                  onPressed: () => load(more: true),
+                  child: const Text('Ver más resultados'),
                 ),
             ],
           ),
-          SectionTitle(
-            attractions ? 'Lugares que inspiran' : 'Experiencias para recordar',
-          ),
-          if (!busy && error == null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Text(
-                '$total ${attractions ? 'lugares' : 'experiencias'} disponibles',
-                style: const TextStyle(color: muted),
-              ),
-            ),
-          ...items.map(
-            (item) => attractions
-                ? AttractionCard(Attraction(item))
-                : PackageCard(TravelPackage(item)),
-          ),
-          if (busy)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          if (error != null)
-            EmptyView(
-              icon: Icons.wifi_off_outlined,
-              title: 'No pudimos cargar el catálogo',
-              description: error is ApiFailure
-                  ? (error as ApiFailure).message
-                  : 'Inténtalo nuevamente.',
-              action: 'Volver a intentar',
-              onAction: () => load(more: items.isNotEmpty),
-            ),
-          if (!busy && error == null && items.isEmpty)
-            const EmptyView(
-              icon: Icons.travel_explore,
-              title: 'Todavía no encontramos resultados',
-              description: 'Prueba otra búsqueda o cambia el departamento.',
-            ),
-          if (!busy && error == null && items.length < total)
-            OutlinedButton(
-              onPressed: () => load(more: true),
-              child: const Text('Ver más resultados'),
-            ),
-        ],
+        ),
       ),
     ),
   );

@@ -102,7 +102,7 @@ class _AuthPageState extends State<AuthPage> {
     final api = context.read<AndariaApi>();
     try {
       if (registration) {
-        await api.register({
+        final verificationRequired = await api.register({
           'email': email.text.trim(),
           'password': password.text,
           'first_name': first.text.trim(),
@@ -112,7 +112,17 @@ class _AuthPageState extends State<AuthPage> {
           setState(() {
             registration = false;
           });
+          if (verificationRequired) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Revisa tu correo y confirma el enlace antes de iniciar sesión.',
+                ),
+              ),
+            );
+          }
         }
+        if (verificationRequired) return;
       }
       await api.login(email.text, password.text);
       if (mounted) Navigator.pop(context, true);

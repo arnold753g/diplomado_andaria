@@ -1,4 +1,4 @@
 <resources>
     <color name="andaria_lime">#BAFE06</color>
-    <item type="mipmap" name="andaria_launcher">@drawable/andaria_icon</item>
+    <color name="andaria_icon_background">#00000000</color>
 </resources>
