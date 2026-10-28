@@ -1,11 +1,11 @@
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:26-alpine
 RUN apk add --no-cache dumb-init wget
 WORKDIR /app
 COPY --from=builder --chown=node:node /app/.output /app/.output
