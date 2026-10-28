@@ -29,7 +29,7 @@ export const packageDepartureShortDate = (value: string) => new Intl.DateTimeFor
 
 export const packageDepartureStatus = (departure: PublicPackageDeparture) => {
   if (departure.available_capacity <= 0) return 'Agotada'
-  if (departure.bookable) return departure.minimum_reached ? 'Confirmada y en venta' : 'Venta abierta'
+  if (departure.bookable) return departure.minimum_reached ? 'Mínimo alcanzado y en venta' : 'Venta abierta'
   if (new Date(departure.booking_opens_at).getTime() > Date.now()) return 'Venta próxima'
   return 'Venta cerrada'
 }

@@ -51,6 +51,8 @@ export interface Purchase {
   departure_start: string
   meeting_point: string
   has_proof: boolean
+  receipt_available?: boolean
+  payment_confirmed_at?: string
   has_refund_qr: boolean
   has_refund_proof: boolean
   cancellable: boolean

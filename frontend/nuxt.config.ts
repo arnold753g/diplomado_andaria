@@ -36,7 +36,9 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Andaria: experiencias y turismo en Tarija' }
       ],
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/branding/favicon.svg' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico?v=20261023-alpha', sizes: '16x16 32x32 48x48' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/branding/favicon.svg?v=20261023-alpha' },
+        { rel: 'apple-touch-icon', href: '/branding/apple-touch-icon.png?v=20261023-alpha' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap' }

@@ -47,10 +47,10 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async register(payload: { email: string, password: string, first_name: string, last_name: string, phone?: string, document_number?: string, nationality?: string }): Promise<ActionResult<User>> {
+    async register(payload: { email: string, password: string, first_name: string, last_name: string, phone?: string, document_number?: string, nationality?: string }): Promise<ActionResult<User | { verification_required: boolean }>> {
       try {
         const config = useRuntimeConfig()
-        const response = await $fetch<ApiEnvelope<User>>(`${config.public.apiBase}/auth/register`, {
+        const response = await $fetch<ApiEnvelope<User | { verification_required: boolean }>>(`${config.public.apiBase}/auth/register`, {
           method: 'POST', credentials: 'include', body: payload
         })
         return { ok: true, data: response.data, message: response.message }
@@ -118,8 +118,9 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         if (this.csrfToken) await this.request('/auth/logout', { method: 'POST' })
-      } catch {
-        // The session may already be invalid; local state must still be cleared.
+        return true
+      } catch (error) {
+        return isAuthenticationError(error)
       } finally {
         this.clear()
       }

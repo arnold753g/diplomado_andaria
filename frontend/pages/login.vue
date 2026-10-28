@@ -23,6 +23,7 @@
             </div>
             <Message v-if="successMessage" severity="success" class="form-error" :closable="false">{{ successMessage }}</Message>
             <Message v-if="errorMessage" severity="error" class="form-error" :closable="false">{{ errorMessage }}</Message>
+            <Message v-if="route.query.reason === 'logout_unconfirmed'" severity="warn" :closable="false">Se borró el acceso local, pero no se pudo confirmar el cierre de la sesión en el servidor.</Message>
             <form class="stack" novalidate @submit.prevent="submit">
               <div class="form-field">
                 <label for="email">Correo electrónico</label>

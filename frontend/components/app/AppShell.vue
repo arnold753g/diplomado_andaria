@@ -68,8 +68,8 @@ const navigationActive = (path: string) => {
 
 const logout = async () => {
   loggingOut.value = true
-  await auth.logout()
-  await navigateTo('/login')
+  const revoked = await auth.logout()
+  await navigateTo(revoked ? '/login' : '/login?reason=logout_unconfirmed')
 }
 </script>
 
