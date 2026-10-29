@@ -1,5 +1,9 @@
 # Andaria Android
 
+Entrega de seguridad **0.1.5+6**: espera de confirmación de correo sin abrir sesión y compatibilidad con el backend anterior. Se conserva la firma, el identificador y el icono transparente.
+
+Después de ejecutar pruebas, compila release sin `--no-pub`: Flutter 3.44.8 necesita regenerar el registro nativo para excluir plugins de desarrollo como `integration_test`. El lockfile conserva las versiones; no edites `GeneratedPluginRegistrant.java` manualmente.
+
 App Flutter + Dart para turistas. Comparte la API Go y los datos de la web. El catálogo es público; favoritos, perfil y compras requieren una cuenta con rol `turista`.
 
 ## Ejecutar
@@ -131,6 +135,31 @@ Para habilitar el acceso real:
 
 No hace falta incorporar `google-services.json` para este flujo: se pasa el identificador web como `serverClientId`. La vinculación de Google a una cuenta ya existente conserva el flujo explícito de la web.
 
+### APK para la API pública
+
+El backend de producción ya ofrece Google mediante `/auth/mobile/options`. El APK consulta esta disponibilidad al abrir el formulario y muestra **Continuar con Google**. No se incorpora ningún secreto OAuth al APK ni hay que sustituir el cliente web del backend por el identificador Android.
+
+En Google Auth Platform, selecciona el mismo proyecto usado por la web y crea un cliente de tipo **Android** con paquete `bo.andaria.andaria_mobile` y la SHA-1 del certificado release. La huella se obtiene del APK firmado con `apksigner verify --print-certs RUTA_AL_APK`. Cada certificado diferente requiere su propio registro; el APK debug y una futura entrega con firma de Google Play pueden tener huellas diferentes.
+
+Compila la entrega con la firma propia ya configurada:
+
+```powershell
+flutter analyze
+flutter test
+flutter build apk --release --dart-define=API_BASE_URL=https://diplomado.andaria.site/api/v1
+```
+
+Instala `build/app/outputs/flutter-apk/app-release.apk` sobre la entrega anterior, conservando la misma firma. El cliente Android de Google Cloud debe quedar registrado antes de comprobar el acceso real. No se requiere cambiar el callback web ni reiniciar el VPS al crear ese cliente Android.
+
+Verificación en un teléfono Android con servicios de Google Play:
+
+1. Abre Perfil → Iniciar sesión → Continuar con Google y selecciona una cuenta.
+2. Comprueba que aparece el mismo turista y sus datos que en la web, si ya estaba vinculado; una identidad nueva se registra como turista cuando el registro está habilitado.
+3. Cierra y vuelve a abrir la app para comprobar la restauración de sesión; después cierra sesión y confirma que las pantallas privadas dejan de mostrar los datos.
+4. Si el correo ya tenía una cuenta local sin vincular, ingresa con contraseña y vincula Google desde el perfil web antes de repetir el acceso en Android.
+
+Las pruebas `test/google_login_test.dart` comprueban el intercambio del ID token por una sesión Andaria, CSRF, la ausencia del token Google en almacenamiento y los rechazos sin mezclar cuentas. Usan una API simulada: no certifican el selector de cuentas ni la configuración de Google Cloud.
+
 ## Organización
 
 - `lib/core/`: API, sesión, formatos, cálculo de grupos, tema y acceso Google.
@@ -146,6 +175,16 @@ Las solicitudes de compra usan `Idempotency-Key`. Una clave pendiente se conserv
 ## Límites de esta entrega
 
 El acceso real con Google depende de registrar paquete y firma en Google Cloud. La recuperación de contraseña, las notificaciones push, el uso sin conexión y la eliminación de cuenta no están implementados. La publicación en tiendas requiere preparar firma, privacidad y requisitos de distribución. El APK debug es para pruebas.
+
+## Icono de marca
+
+La versión 0.1.4+5 utiliza el símbolo de cuatro cuadrantes proporcionado para Andaria, conservando el fondo transparente original. Los iconos Android, de arranque y Flutter web ya están incluidos en las carpetas de recursos de esta aplicación. La firma y el identificador del paquete se conservan, por lo que la nueva APK puede instalarse como actualización de la entrega anterior.
+
+## Inicio y carga de marca
+
+El inicio muestra la marca transparente original y los módulos **Paquetes turísticos** y **Atracciones turísticas**, con búsqueda, departamento y ordenación. La pantalla limita el ancho en tabletas y permite desplazamiento con texto ampliado.
+
+Durante la inicialización y las peticiones de contenido se anima suavemente la escala y opacidad del logo. No hay una espera artificial: la animación desaparece al completar la operación y los errores ofrecen reintento. La opción de reducir movimiento del sistema desactiva la animación. Android mantiene su pantalla nativa de arranque con el mismo símbolo antes del primer fotograma de Flutter.
 
 ## Integración continua
 

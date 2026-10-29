@@ -7,6 +7,7 @@ import '../core/api.dart';
 import '../core/theme.dart';
 import '../shared/widgets.dart';
 import 'auth.dart';
+import '../shared/brand.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -23,8 +24,8 @@ class ProfilePage extends StatelessWidget {
             onPressed: () => showAboutDialog(
               context: context,
               applicationName: 'Andaria',
-              applicationVersion: '0.1.0',
-              applicationIcon: const Icon(Icons.explore_outlined, size: 40),
+              applicationVersion: '0.1.4',
+              applicationIcon: const AndariaLogo(size: 48),
               children: const [
                 Text('Experiencias y lugares de Bolivia para turistas.'),
               ],

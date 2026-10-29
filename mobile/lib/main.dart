@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -8,10 +7,10 @@ import 'package:provider/provider.dart';
 import 'core/api.dart';
 import 'core/theme.dart';
 import 'features/shell.dart';
+import 'shared/startup.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('es_BO');
   LicenseRegistry.addLicense(() async* {
     final text = await rootBundle.loadString('assets/fonts/OFL.txt');
     yield LicenseEntryWithLineBreaks(['Outfit'], text);
@@ -26,7 +25,6 @@ Future<void> main() async {
   );
   final api = AndariaApi();
   runApp(AndariaApp(api: api));
-  unawaited(api.restore());
 }
 
 class AndariaApp extends StatelessWidget {
@@ -42,7 +40,13 @@ class AndariaApp extends StatelessWidget {
       locale: const Locale('es', 'BO'),
       supportedLocales: const [Locale('es', 'BO')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: const AppShell(),
+      home: AndariaStartup(
+        initialize: () async {
+          await initializeDateFormatting('es_BO');
+          await api.restore();
+        },
+        child: const AppShell(),
+      ),
     ),
   );
 }

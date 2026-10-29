@@ -24,16 +24,21 @@ class ProofImage {
   static Future<ProofImage> validate(Uint8List bytes) async {
     final proof = fromBytes(bytes);
     final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    ui.ImageDescriptor? descriptor;
     ui.Codec? codec;
     try {
-      descriptor = await ui.ImageDescriptor.encoded(buffer);
-      if (descriptor.width > 4096 || descriptor.height > 4096) {
-        throw const ApiFailure(
-          'Selecciona una imagen de hasta 4096 × 4096 píxeles.',
-        );
-      }
-      codec = await descriptor.instantiateCodec();
+      // Encoded ImageDescriptor dimensions are unavailable on Flutter web.
+      // This API supplies the original dimensions and owns the buffer.
+      codec = await ui.instantiateImageCodecWithSize(
+        buffer,
+        getTargetSize: (width, height) {
+          if (width > 4096 || height > 4096) {
+            throw const ApiFailure(
+              'Selecciona una imagen de hasta 4096 × 4096 píxeles.',
+            );
+          }
+          return const ui.TargetImageSize();
+        },
+      );
       final frame = await codec.getNextFrame();
       frame.image.dispose();
       return proof;
@@ -45,8 +50,6 @@ class ProofImage {
       );
     } finally {
       codec?.dispose();
-      descriptor?.dispose();
-      buffer.dispose();
     }
   }
 

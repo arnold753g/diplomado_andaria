@@ -56,9 +56,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         }),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Explorar',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Inicio',
           ),
           NavigationDestination(
             icon: Icon(Icons.favorite_border),

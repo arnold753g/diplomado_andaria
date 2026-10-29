@@ -218,8 +218,9 @@ class AndariaApi extends ChangeNotifier {
     await _acceptSession(Map<String, dynamic>.from(data as Map));
   }
 
-  Future<void> register(Json payload) async {
-    await request('/auth/register', method: 'POST', body: payload);
+  Future<bool> register(Json payload) async {
+    final data = await request('/auth/register', method: 'POST', body: payload);
+    return data is Map && data['verification_required'] == true;
   }
 
   Future<void> loginGoogle(String idToken) async {
@@ -365,6 +366,52 @@ class AndariaApi extends ChangeNotifier {
         await clear();
       }
       throw const ApiFailure('No se pudo cargar el comprobante.');
+    }
+  }
+
+  Future<Uint8List> privatePdf(String path) async {
+    if (!signedIn) {
+      throw const ApiFailure('Inicia sesión para consultar el PDF.');
+    }
+    final epoch = _sessionEpoch;
+    try {
+      final result = await client.get<List<int>>(
+        path,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            if (!kIsWeb) 'Cookie': _cookie,
+            'Accept': 'application/pdf',
+          },
+        ),
+      );
+      if (epoch != _sessionEpoch) {
+        throw const ApiFailure('La sesión cambió. Regresa para continuar.');
+      }
+      final bytes = result.data ?? const <int>[];
+      if (!(result.headers.value('content-type') ?? '').startsWith(
+            'application/pdf',
+          ) ||
+          bytes.length < 5 ||
+          bytes[0] != 37 ||
+          bytes[1] != 80 ||
+          bytes[2] != 68 ||
+          bytes[3] != 70 ||
+          bytes[4] != 45) {
+        throw const ApiFailure('El servidor no devolvió un PDF válido.');
+      }
+      _scheduleExpiration();
+      return Uint8List.fromList(bytes);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401 && epoch == _sessionEpoch) {
+        await clear();
+      }
+      throw ApiFailure(
+        e.response?.statusCode == 409
+            ? 'El comprobante todavía no está disponible. Actualiza la compra.'
+            : 'No se pudo cargar el comprobante PDF. Inténtalo nuevamente.',
+        status: e.response?.statusCode,
+      );
     }
   }
 

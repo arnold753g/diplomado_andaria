@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import 'photo_gallery.dart';
+import 'brand.dart';
 
 void message(BuildContext context, Object error) {
   final text = error is ApiFailure
@@ -46,12 +47,7 @@ class _AsyncContentState<T> extends State<AsyncContent<T>> {
     future: future,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.all(48),
-            child: CircularProgressIndicator(),
-          ),
-        );
+        return const Center(child: AndariaLoading());
       }
       if (snapshot.hasError) {
         return EmptyView(
