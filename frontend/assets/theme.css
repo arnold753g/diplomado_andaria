@@ -159,16 +159,6 @@ h1, h2, h3 {
 
 .page-container { width: min(100% - 2.5rem, var(--content-max)); margin-inline: auto; }
 .page-heading { margin-bottom: var(--space-8); }
-.page-heading::before {
-  content: "";
-  display: block;
-  width: 2.75rem;
-  height: 0.25rem;
-  margin-bottom: var(--space-4);
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
-  box-shadow: 0 0 22px rgba(186, 254, 6, 0.32);
-}
 .page-heading h1 { margin-bottom: var(--space-3); font-size: clamp(2rem, 3.4vw, 3rem); font-weight: var(--font-weight-bold); }
 .page-heading p { margin-bottom: 0; color: var(--color-text-muted); max-width: 68ch; font-size: 1.0625rem; }
 .stack { display: grid; gap: var(--space-5); }
@@ -248,7 +238,6 @@ h1, h2, h3 {
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
-.auth-eyebrow::before { content: ""; width: 1.5rem; height: 2px; background: currentColor; box-shadow: 0 0 12px currentColor; }
 .auth-showcase-title { margin-bottom: var(--space-5); color: var(--color-text); font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: var(--font-weight-bold); line-height: 1.02; letter-spacing: -0.035em; }
 .auth-showcase-title span { color: var(--color-primary); }
 .auth-showcase p { max-width: 48ch; margin-bottom: 0; color: var(--color-text-muted); font-size: 1.0625rem; }

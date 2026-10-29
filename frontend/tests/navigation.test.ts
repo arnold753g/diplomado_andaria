@@ -9,6 +9,7 @@ test('guest navigation exposes the public home and both catalogs', () => {
 
 test('tourist navigation exposes packages and favorites without management links', () => {
   const paths = navigationItems('user', 'turista').map(item => item.to)
+  assert.ok(paths.includes('/attractions'))
   assert.ok(paths.includes('/packages'))
   assert.ok(paths.includes('/app/favorites'))
   assert.ok(paths.includes('/app/purchases'))
@@ -16,9 +17,11 @@ test('tourist navigation exposes packages and favorites without management links
   assert.ok(!paths.includes('/managed-attractions'))
 })
 
-test('agency manager distinguishes public exploration from package management', () => {
+test('agency manager navigation contains management and profile without exploration links', () => {
   const items = navigationItems('user', 'encargado_agencia')
-  assert.equal(items.find(item => item.to === '/packages')?.label, 'Explorar paquetes')
+  assert.deepEqual(items.map(item => item.to), [
+    '/app', '/agency', '/agency/packages', '/agency/purchases', '/app/profile'
+  ])
   assert.equal(items.find(item => item.to === '/agency/packages')?.label, 'Gestionar paquetes')
-  assert.equal(items.find(item => item.to === '/agency/purchases')?.label, 'Revisar compras')
+  assert.equal(items.find(item => item.to === '/agency/purchases')?.label, 'Gestionar pagos')
 })

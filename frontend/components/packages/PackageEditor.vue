@@ -41,8 +41,9 @@
             <div class="form-field"><label for="schedule-min-capacity">Cupo mínimo *</label><InputNumber input-id="schedule-min-capacity" v-model="scheduleForm.default_min_capacity" :min="1" :max="500" show-buttons /></div>
             <div class="form-field"><label for="schedule-max-capacity">Cupo máximo *</label><InputNumber input-id="schedule-max-capacity" v-model="scheduleForm.default_max_capacity" :min="1" :max="500" show-buttons /></div>
             <div class="form-field"><label for="schedule-cutoff">Cerrar compras antes de la salida *</label><InputNumber input-id="schedule-cutoff" v-model="scheduleForm.booking_cutoff_hours" :min="1" :max="720" suffix=" horas" show-buttons /></div>
-            <div class="form-field"><label for="schedule-advance">Máxima anticipación de compra *</label><InputNumber input-id="schedule-advance" v-model="scheduleForm.maximum_advance_days" :min="1" :max="365" suffix=" días" show-buttons /><small>Hoy se podrán comprar salidas hasta el {{ formatLongDate(maximumBookableDate) }}.</small></div>
+            <div v-if="scheduleForm.frequency_type !== 'single'" class="form-field"><label for="schedule-advance">Máxima anticipación de compra *</label><InputNumber input-id="schedule-advance" v-model="scheduleForm.maximum_advance_days" :min="1" :max="365" suffix=" días" show-buttons /><small>Hoy se podrán comprar salidas hasta el {{ formatLongDate(maximumBookableDate) }}.</small></div>
           </div>
+          <Message v-if="scheduleForm.frequency_type === 'single'" severity="info" :closable="false">Las compras estarán disponibles desde la publicación del paquete hasta el cierre configurado antes de la salida.</Message>
           <div class="form-field"><label for="schedule-meeting-point">Punto de encuentro predeterminado</label><InputText id="schedule-meeting-point" v-model.trim="scheduleForm.default_meeting_point" maxlength="500" /><small>Se copiará a cada salida y podrá modificarse individualmente.</small></div>
           <div class="form-field"><label for="schedule-instructions">Instrucciones para turistas</label><Textarea id="schedule-instructions" v-model.trim="scheduleForm.default_instructions" rows="3" maxlength="3000" /></div>
           <Message severity="success" :closable="false"><strong>{{ schedulePreview.length }} {{ schedulePreview.length === 1 ? 'salida' : 'salidas' }}</strong> en la programación. <span v-if="schedulePreview.length">Primeras fechas: {{ schedulePreview.slice(0, 5).map(formatPreviewDate).join(' · ') }}<span v-if="schedulePreview.length > 5"> · …</span></span></Message>
@@ -56,6 +57,7 @@
               <div><strong>{{ formatDeparture(departure.starts_at) }}</strong><small>Compras: {{ formatWindow(departure.booking_opens_at, departure.booking_closes_at) }}</small></div>
               <div>
                 <span>{{ departure.confirmed_capacity }} confirmados de {{ departure.max_capacity }}</span>
+                <NuxtLink :to="`/agency/purchases?departure=${departure.id}`">Gestionar pagos y autorización</NuxtLink>
                 <div class="cluster"><Tag v-if="departure.is_exception && departure.status !== 'minimum_review'" value="Ajustada" severity="info" /><Tag :value="departureStatus(departure.status)" :severity="departure.status === 'cancelled' ? 'danger' : departure.status === 'minimum_review' ? 'warn' : departure.status === 'closed' ? 'secondary' : 'success'" /></div>
                 <Message v-if="departure.status === 'minimum_review'" severity="warn" :closable="false">Cerraron las compras con {{ departure.confirmed_capacity }} de {{ departure.min_capacity }} participantes mínimos. Revisa y confirma antes de iniciar los reembolsos.</Message>
                 <div v-if="departure.status === 'minimum_review'" class="cluster"><Button type="button" label="Confirmar cancelación y reembolsos" icon="pi pi-wallet" size="small" severity="danger" :loading="departureBusy" :disabled="dirty" @click="confirmMinimumRefund(departure)" /></div>
@@ -139,6 +141,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import type { PackageAttractionSummary, PackageDeparture, PackageFrequency, TourPackage } from '~/types/package'
 import { apiError } from '~/utils/api-error'
+import { previewPackageSchedule } from '~/utils/package-schedule'
 const props = defineProps<{ create?: boolean; packageId?: number }>()
 const emit = defineEmits<{ saved: [item: TourPackage] }>()
 const auth = useAuthStore(); const config = useRuntimeConfig(); const confirm = useConfirm(); const toast = useToast()
@@ -187,17 +190,7 @@ const boliviaClockToDate = (value: string) => {
 }
 const scheduleMaxEnd = computed(() => scheduleStartDate.value ? new Date(scheduleStartDate.value.getFullYear() + 1, scheduleStartDate.value.getMonth(), scheduleStartDate.value.getDate(), 12) : undefined)
 const maximumBookableDate = computed(() => new Date(today.getFullYear(), today.getMonth(), today.getDate() + Math.max(1, scheduleForm.maximum_advance_days), 12))
-const schedulePreview = computed(() => {
-  const start = scheduleStartDate.value
-  const end = scheduleForm.frequency_type === 'single' ? start : scheduleEndDate.value
-  if (!start || !end || end < start) return [] as Date[]
-  const result: Date[] = []
-  for (let day = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12); day <= end && result.length <= 366; day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 12)) {
-    const isoDay = day.getDay() || 7
-    if (scheduleForm.frequency_type === 'single' || scheduleForm.frequency_type === 'daily' || scheduleForm.weekdays.includes(isoDay)) result.push(day)
-  }
-  return result
-})
+const schedulePreview = computed(() => previewPackageSchedule(scheduleForm.frequency_type, scheduleStartDate.value, scheduleEndDate.value, scheduleForm.weekdays))
 const formatPreviewDate = (value: Date) => new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short' }).format(value)
 const formatLongDate = (value: Date) => new Intl.DateTimeFormat('es-BO', { day: 'numeric', month: 'long', year: 'numeric' }).format(value)
 const formatDeparture = (value: string) => new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/La_Paz' }).format(new Date(value))
@@ -365,12 +358,13 @@ const save = async () => {
   if (form.cancellation_allowed && form.cancellation_notice_hours < 1) { error.value = 'Indica la anticipación mínima para cancelar.'; return }
   if (scheduleEnabled.value) {
     const end = scheduleForm.frequency_type === 'single' ? scheduleStartDate.value : scheduleEndDate.value
-    if (!scheduleStartDate.value || !end || end < scheduleStartDate.value || end > (scheduleMaxEnd.value || end)) { error.value = 'Selecciona un rango válido de hasta doce meses.'; return }
+    if (!scheduleStartDate.value || !end || formatDateInput(end) < formatDateInput(scheduleStartDate.value) || formatDateInput(end) > formatDateInput(scheduleMaxEnd.value || end)) { error.value = 'Selecciona un rango válido de hasta doce meses.'; return }
     if (!scheduleDepartureTime.value || !scheduleMeetingTime.value || formatClock(scheduleMeetingTime.value) > formatClock(scheduleDepartureTime.value)) { error.value = 'La hora de encuentro debe ser igual o anterior a la hora de salida.'; return }
     if (scheduleForm.frequency_type === 'specific_weekdays' && !scheduleForm.weekdays.length) { error.value = 'Selecciona al menos un día específico de salida.'; return }
     if (!schedulePreview.value.length) { error.value = 'La programación no genera ninguna salida.'; return }
     if (scheduleForm.default_min_capacity < 1 || scheduleForm.default_max_capacity < scheduleForm.default_min_capacity) { error.value = 'Revisa el cupo mínimo y máximo.'; return }
-    if (scheduleForm.booking_cutoff_hours < 1 || scheduleForm.maximum_advance_days < 1 || scheduleForm.booking_cutoff_hours >= scheduleForm.maximum_advance_days * 24) { error.value = 'La anticipación máxima debe ser mayor que el cierre de compras.'; return }
+    if (scheduleForm.booking_cutoff_hours < 1 || scheduleForm.booking_cutoff_hours > 720) { error.value = 'El cierre de compras debe estar entre 1 y 720 horas.'; return }
+    if (scheduleForm.frequency_type !== 'single' && (scheduleForm.maximum_advance_days < 1 || scheduleForm.maximum_advance_days > 365 || scheduleForm.booking_cutoff_hours >= scheduleForm.maximum_advance_days * 24)) { error.value = 'La anticipación máxima debe estar entre 1 y 365 días y superar el cierre de compras.'; return }
     if (form.published && scheduleForm.frequency_type === 'single') {
       const departure = new Date(scheduleStartDate.value); departure.setHours(scheduleDepartureTime.value.getHours(), scheduleDepartureTime.value.getMinutes(), 0, 0)
       if (departure <= new Date()) { error.value = 'La salida única debe tener una fecha y hora futuras.'; return }
@@ -390,6 +384,7 @@ const save = async () => {
       itinerary: itinerary.value.map(day => ({ day_number: day.day_number, title: day.title, description: day.description, activities: lines(day.activitiesText), attraction_ids: day.attraction_ids })),
       schedule: scheduleEnabled.value ? {
         ...scheduleForm,
+        maximum_advance_days: scheduleForm.frequency_type === 'single' ? undefined : scheduleForm.maximum_advance_days,
         valid_from: formatDateInput(scheduleStartDate.value), valid_until: formatDateInput(scheduleEnd),
         departure_time: formatClock(scheduleDepartureTime.value), meeting_time: formatClock(scheduleMeetingTime.value)
       } : null

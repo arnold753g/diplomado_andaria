@@ -19,6 +19,7 @@
             <NuxtLink class="auth-brand" to="/login"><img :src="branding.logo" :alt="branding.name"><span class="brand-name">{{ branding.name }}</span></NuxtLink>
             <div class="page-heading"><h1>Crear cuenta</h1><p>Regístrate como turista. Puedes completar tus datos personales desde tu perfil.</p></div>
             <Message v-if="errorMessage" severity="error" class="form-error" :closable="false">{{ errorMessage }}</Message>
+            <Message v-if="verificationMessage" severity="success" :closable="false">{{ verificationMessage }}</Message>
             <form class="stack" novalidate @submit.prevent="submit">
               <div class="form-field"><label for="first-name">Nombre</label><InputText id="first-name" v-model.trim="form.first_name" autocomplete="given-name" :invalid="Boolean(errors.first_name)" /><small v-if="errors.first_name" class="field-error">{{ errors.first_name }}</small></div>
               <div class="form-field"><label for="last-name">Apellido</label><InputText id="last-name" v-model.trim="form.last_name" autocomplete="family-name" :invalid="Boolean(errors.last_name)" /><small v-if="errors.last_name" class="field-error">{{ errors.last_name }}</small></div>
@@ -56,6 +57,7 @@ const branding = useBranding()
 const submitting = ref(false)
 const confirmation = ref('')
 const errorMessage = ref('')
+const verificationMessage = ref('')
 const errors = reactive<Record<string, string>>({})
 const form = reactive({ first_name: '', last_name: '', email: '', password: '', phone: '', document_number: '', nationality: '' })
 const schema = z.object({
@@ -71,6 +73,7 @@ const schema = z.object({
 const submit = async () => {
   if (submitting.value) return
   errorMessage.value = ''
+  verificationMessage.value = ''
   if (form.password !== confirmation.value) { errorMessage.value = 'Las contraseñas no coinciden.'; return }
   Object.keys(errors).forEach(key => delete errors[key])
   const parsed = schema.safeParse(form)
@@ -84,6 +87,10 @@ const submit = async () => {
   if (!result.ok) {
     errorMessage.value = result.error?.message || 'No se pudo crear la cuenta'
     Object.assign(errors, result.error?.fields || {})
+    return
+  }
+  if (result.data && 'verification_required' in result.data && result.data.verification_required) {
+    verificationMessage.value = result.message || 'Revisa tu correo y confirma el enlace antes de iniciar sesión. Puedes volver a enviar este formulario después de un minuto.'
     return
   }
   await navigateTo('/login?registered=true')

@@ -30,5 +30,5 @@ test('package catalog formats commercial values consistently', () => {
 test('departure status prioritizes sold out and minimum state', () => {
   assert.equal(packageDepartureStatus(departure({ available_capacity: 0 })), 'Agotada')
   assert.equal(packageDepartureStatus(departure()), 'Venta abierta')
-  assert.equal(packageDepartureStatus(departure({ minimum_reached: true })), 'Confirmada y en venta')
+  assert.equal(packageDepartureStatus(departure({ minimum_reached: true })), 'Mínimo alcanzado y en venta')
 })

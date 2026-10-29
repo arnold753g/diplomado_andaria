@@ -24,8 +24,10 @@ export const navigationItems = (mode: NavigationMode, role?: Role): NavigationIt
   }
   return [
     { label: 'Inicio', to: '/app', icon: 'pi pi-home' },
-    { label: 'Explorar atracciones', to: '/attractions', icon: 'pi pi-compass' },
-    { label: 'Explorar paquetes', to: '/packages', icon: 'pi pi-compass' },
+    ...(role !== 'encargado_agencia' ? [
+      { label: 'Explorar atracciones', to: '/attractions', icon: 'pi pi-compass' },
+      { label: 'Explorar paquetes', to: '/packages', icon: 'pi pi-compass' }
+    ] : []),
     ...(role === 'turista' ? [
       { label: 'Mis compras', to: '/app/purchases', icon: 'pi pi-shopping-bag' },
       { label: 'Mis favoritos', to: '/app/favorites', icon: 'pi pi-heart' }
@@ -34,7 +36,7 @@ export const navigationItems = (mode: NavigationMode, role?: Role): NavigationIt
     ...(role === 'encargado_agencia' ? [
       { label: 'Mi agencia', to: '/agency', icon: 'pi pi-building' },
       { label: 'Gestionar paquetes', to: '/agency/packages', icon: 'pi pi-briefcase' },
-      { label: 'Revisar compras', to: '/agency/purchases', icon: 'pi pi-receipt' }
+      { label: 'Gestionar pagos', to: '/agency/purchases', icon: 'pi pi-receipt' }
     ] : []),
     { label: 'Mi perfil', to: '/app/profile', icon: 'pi pi-user' }
   ]

@@ -18,7 +18,8 @@
           <div class="card-content">
             <dl><dt>Agencia</dt><dd>{{ purchase.agency_name }}</dd><dt>Salida</dt><dd>{{ dateTime(purchase.departure_start) }}</dd><dt>Participantes que ocupan cupo</dt><dd>{{ purchase.capacity_count }}</dd><dt>Menores gratuitos registrados</dt><dd>{{ purchase.free_minor_count }}</dd><dt>Medio de pago</dt><dd>{{ paymentMethodLabel(purchase.payment_method) }}</dd><dt>Total</dt><dd><strong>{{ packageMoney(purchase.total_cents) }}</strong></dd></dl>
 
-            <Message v-if="purchase.status === 'payment_review'" severity="warn" :closable="false">La agencia está revisando el comprobante. Los cupos ya fueron descontados.</Message>
+            <PaymentsReceiptActions v-if="purchase.receipt_available" :purchase-id="purchase.id" />
+            <Message v-if="purchase.status === 'payment_review'" severity="warn" :closable="false">La agencia está revisando el comprobante. Los cupos ya fueron descontados. El PDF estará disponible cuando se confirme el pago.</Message>
             <div v-if="purchase.status === 'correction_requested'" class="action-box">
               <Message severity="info" :closable="false">{{ purchase.rejection_reason }} Los cupos se mantienen mientras corriges el respaldo.</Message>
               <div class="form-field"><label :for="`proof-${purchase.id}`">Nuevo comprobante</label><input :id="`proof-${purchase.id}`" type="file" accept="image/png,image/jpeg" @change="readPaymentProof(purchase.id, $event)"></div>
@@ -71,6 +72,7 @@ import Card from 'primevue/card'
 import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
+import PaymentsReceiptActions from '~/components/payments/ReceiptActions.vue'
 import type { Purchase, PurchasePage } from '~/types/purchase'
 import { apiError } from '~/utils/api-error'
 import { packageMoney } from '~/utils/packages'

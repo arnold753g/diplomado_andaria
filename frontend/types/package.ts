@@ -47,6 +47,10 @@ export interface PackageDeparture {
   minimum_review_at?: string
   minimum_reviewed_at?: string
   minimum_review_user_id?: number
+  authorized_at?: string
+  authorized_by_user_id?: number
+  authorization_revoked_at?: string
+  authorization_revocation_reason: string
   version: number
 }
 export interface PublicPackageDeparture {
