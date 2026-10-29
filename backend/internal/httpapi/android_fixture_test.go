@@ -59,6 +59,12 @@ func TestAndroidFixture(t *testing.T) {
 	if err := db.Create(&item).Error; err != nil {
 		t.Fatal(err)
 	}
+	// The public guest flow opens the package gallery. Seed an actual photo
+	// rather than presenting a published package with only a placeholder.
+	photo := models.TourPackagePhoto{PackageID: item.ID, Position: 0, Image: qr}
+	if err := db.Create(&photo).Error; err != nil {
+		t.Fatal(err)
+	}
 	now := time.Now().UTC()
 	departure := models.TourPackageDeparture{PackageID: item.ID, StartsAt: now.Add(14 * 24 * time.Hour), MeetingAt: now.Add(14*24*time.Hour - time.Hour), BookingOpensAt: now.Add(-time.Hour), BookingClosesAt: now.Add(13 * 24 * time.Hour), MinCapacity: 1, MaxCapacity: 20, MeetingPoint: "Plaza de prueba", Status: "open", Version: 1}
 	if err := db.Create(&departure).Error; err != nil {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 	"starter-backend/internal/middleware"
 	"starter-backend/internal/models"
+	"starter-backend/internal/receipts"
 	"starter-backend/internal/respond"
 )
 
@@ -103,6 +105,7 @@ type purchaseResponse struct {
 	DepartureStart       time.Time  `json:"departure_start"`
 	MeetingPoint         string     `json:"meeting_point"`
 	HasProof             bool       `json:"has_proof"`
+	ReceiptAvailable     bool       `json:"receipt_available"`
 	HasRefundQR          bool       `json:"has_refund_qr"`
 	HasRefundProof       bool       `json:"has_refund_proof"`
 	Cancellable          bool       `json:"cancellable"`
@@ -113,10 +116,10 @@ type purchaseResponse struct {
 func purchaseQuery(db *gorm.DB) *gorm.DB {
 	return db.
 		Preload("Package", func(tx *gorm.DB) *gorm.DB {
-			return tx.Select("id", "name", "cancellation_allowed", "cancellation_notice_hours")
+			return tx.Select("id", "nombre", "permite_cancelacion", "horas_aviso_cancelacion")
 		}).
-		Preload("Agency", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "name", "phone", "email") }).
-		Preload("Departure", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "starts_at", "meeting_point") })
+		Preload("Agency", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "nombre", "telefono", "correo") }).
+		Preload("Departure", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "salida_en", "punto_encuentro") })
 }
 
 func purchaseView(item models.TourPackagePurchase) purchaseResponse {
@@ -124,6 +127,7 @@ func purchaseView(item models.TourPackagePurchase) purchaseResponse {
 	view := purchaseResponse{
 		TourPackagePurchase: item,
 		HasProof:            len(item.PaymentProof) > 0,
+		ReceiptAvailable:    receipts.Available(item.Status),
 		HasRefundQR:         item.RefundMethod == "qr",
 		HasRefundProof:      item.RefundedAt != nil,
 		RefundOverdue:       item.Status == models.PurchaseRefundPending && item.RefundDueAt != nil && !item.RefundDueAt.After(now),
@@ -303,7 +307,7 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		if requestKey != "" {
 			record := purchaseRequestRecord{TouristID: principal.User.ID, RequestKey: requestKey, PayloadHash: payloadHash, PurchaseID: purchase.ID}
-			return tx.Table("purchase_requests").Create(&record).Error
+			return tx.Table("solicitudes_compra").Create(&record).Error
 		}
 		return nil
 	})
@@ -324,7 +328,7 @@ func (h *PurchaseHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *PurchaseHandler) ListMine(w http.ResponseWriter, r *http.Request) {
 	principal, _ := middleware.CurrentPrincipal(r)
-	h.list(w, r, h.db.Where("tourist_id = ?", principal.User.ID))
+	h.list(w, r, h.db.Where("turista_id = ?", principal.User.ID))
 }
 
 func (h *PurchaseHandler) ListAgency(w http.ResponseWriter, r *http.Request) {
@@ -333,13 +337,23 @@ func (h *PurchaseHandler) ListAgency(w http.ResponseWriter, r *http.Request) {
 		purchaseError(w, r, err)
 		return
 	}
-	q := h.db.Where("agency_id = ?", agency.ID)
+	q := h.db.Where("agencia_id = ?", agency.ID)
 	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" {
-		if !slices.Contains([]string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed, models.PurchasePaymentRejected, models.PurchaseRefundPending, models.PurchaseRefunded}, status) {
+		if !slices.Contains([]string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed, models.PurchasePaymentRejected, models.PurchaseRefundPending, models.PurchaseRefunded, models.PurchaseCancelled}, status) {
 			respond.Error(w, r, http.StatusUnprocessableEntity, "PURCHASE_FILTER_INVALID", "Selecciona un estado válido", nil)
 			return
 		}
-		q = q.Where("status = ?", status)
+		q = q.Where("estado = ?", status)
+	}
+	for _, filter := range []struct{ key, column string }{{"departure_id", "salida_id"}, {"package_id", "paquete_id"}} {
+		if value := r.URL.Query().Get(filter.key); value != "" {
+			id, err := strconv.ParseUint(value, 10, 64)
+			if err != nil || id == 0 {
+				paymentFilterError(w, r)
+				return
+			}
+			q = q.Where(filter.column+" = ?", id)
+		}
 	}
 	h.list(w, r, q)
 }
@@ -352,7 +366,7 @@ func (h *PurchaseHandler) list(w http.ResponseWriter, r *http.Request, q *gorm.D
 		return
 	}
 	var purchases []models.TourPackagePurchase
-	if err := purchaseQuery(q).Omit("payment_proof", "refund_qr", "refund_proof").Order("tour_package_purchases.created_at DESC, tour_package_purchases.id DESC").Limit(limit).Offset((page - 1) * limit).Find(&purchases).Error; err != nil {
+	if err := purchaseQuery(q).Omit("comprobante_pago", "qr_reembolso", "comprobante_reembolso").Order("compras_paquete.creado_en DESC, compras_paquete.id DESC").Limit(limit).Offset((page - 1) * limit).Find(&purchases).Error; err != nil {
 		purchaseError(w, r, err)
 		return
 	}
@@ -367,7 +381,7 @@ func (h *PurchaseHandler) list(w http.ResponseWriter, r *http.Request, q *gorm.D
 
 func (h *PurchaseHandler) GetMine(w http.ResponseWriter, r *http.Request) {
 	principal, _ := middleware.CurrentPrincipal(r)
-	h.get(w, r, h.db.Where("tourist_id = ?", principal.User.ID))
+	h.get(w, r, h.db.Where("turista_id = ?", principal.User.ID))
 }
 
 func (h *PurchaseHandler) GetAgency(w http.ResponseWriter, r *http.Request) {
@@ -376,7 +390,7 @@ func (h *PurchaseHandler) GetAgency(w http.ResponseWriter, r *http.Request) {
 		purchaseError(w, r, err)
 		return
 	}
-	h.get(w, r, h.db.Where("agency_id = ?", agency.ID))
+	h.get(w, r, h.db.Where("agencia_id = ?", agency.ID))
 }
 
 func (h *PurchaseHandler) get(w http.ResponseWriter, r *http.Request, q *gorm.DB) {
@@ -385,7 +399,7 @@ func (h *PurchaseHandler) get(w http.ResponseWriter, r *http.Request, q *gorm.DB
 		return
 	}
 	var purchase models.TourPackagePurchase
-	if err := purchaseQuery(q).Omit("payment_proof", "refund_qr", "refund_proof").First(&purchase, id).Error; err != nil {
+	if err := purchaseQuery(q).Omit("comprobante_pago", "qr_reembolso", "comprobante_reembolso").First(&purchase, id).Error; err != nil {
 		purchaseError(w, r, err)
 		return
 	}
@@ -396,7 +410,7 @@ func (h *PurchaseHandler) get(w http.ResponseWriter, r *http.Request, q *gorm.DB
 
 func (h *PurchaseHandler) ProofMine(w http.ResponseWriter, r *http.Request) {
 	principal, _ := middleware.CurrentPrincipal(r)
-	h.proof(w, r, h.db.Where("tourist_id = ?", principal.User.ID))
+	h.proof(w, r, h.db.Where("turista_id = ?", principal.User.ID))
 }
 
 func (h *PurchaseHandler) ProofAgency(w http.ResponseWriter, r *http.Request) {
@@ -405,7 +419,7 @@ func (h *PurchaseHandler) ProofAgency(w http.ResponseWriter, r *http.Request) {
 		purchaseError(w, r, err)
 		return
 	}
-	h.proof(w, r, h.db.Where("agency_id = ?", agency.ID))
+	h.proof(w, r, h.db.Where("agencia_id = ?", agency.ID))
 }
 
 func (h *PurchaseHandler) UpdateProof(w http.ResponseWriter, r *http.Request) {
@@ -425,7 +439,7 @@ func (h *PurchaseHandler) UpdateProof(w http.ResponseWriter, r *http.Request) {
 	}
 	var purchase models.TourPackagePurchase
 	err = h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tourist_id = ?", principal.User.ID).First(&purchase, id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("turista_id = ?", principal.User.ID).First(&purchase, id).Error; err != nil {
 			return err
 		}
 		if purchase.Version != input.Version {
@@ -547,21 +561,21 @@ func (h *PurchaseHandler) CancelMine(w http.ResponseWriter, r *http.Request) {
 	var purchase models.TourPackagePurchase
 	err = h.db.Transaction(func(tx *gorm.DB) error {
 		var lookup models.TourPackagePurchase
-		if err := tx.Select("id", "departure_id", "package_id").Where("tourist_id = ?", principal.User.ID).First(&lookup, id).Error; err != nil {
+		if err := tx.Select("id", "salida_id", "paquete_id").Where("turista_id = ?", principal.User.ID).First(&lookup, id).Error; err != nil {
 			return err
 		}
 		var departure models.TourPackageDeparture
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&departure, lookup.DepartureID).Error; err != nil {
 			return err
 		}
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tourist_id = ? AND departure_id = ?", principal.User.ID, departure.ID).First(&purchase, id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("turista_id = ? AND salida_id = ?", principal.User.ID, departure.ID).First(&purchase, id).Error; err != nil {
 			return err
 		}
 		if purchase.Version != input.Version {
 			return errPurchaseConflict
 		}
 		var item models.TourPackage
-		if err := tx.Select("id", "cancellation_allowed", "cancellation_notice_hours").First(&item, lookup.PackageID).Error; err != nil {
+		if err := tx.Select("id", "permite_cancelacion", "horas_aviso_cancelacion").First(&item, lookup.PackageID).Error; err != nil {
 			return err
 		}
 		now := time.Now().UTC()
@@ -612,7 +626,7 @@ func (h *PurchaseHandler) UpdateRefundDestination(w http.ResponseWriter, r *http
 	}
 	var purchase models.TourPackagePurchase
 	err = h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tourist_id = ?", principal.User.ID).First(&purchase, id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("turista_id = ?", principal.User.ID).First(&purchase, id).Error; err != nil {
 			return err
 		}
 		if purchase.Version != input.Version {
@@ -659,7 +673,7 @@ func (h *PurchaseHandler) CompleteRefund(w http.ResponseWriter, r *http.Request)
 	}
 	var purchase models.TourPackagePurchase
 	err = h.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("agency_id = ?", agency.ID).First(&purchase, id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("agencia_id = ?", agency.ID).First(&purchase, id).Error; err != nil {
 			return err
 		}
 		if purchase.Version != input.Version {
@@ -694,7 +708,7 @@ func (h *PurchaseHandler) proof(w http.ResponseWriter, r *http.Request, q *gorm.
 		return
 	}
 	var purchase models.TourPackagePurchase
-	if err := q.Select("id", "payment_proof").First(&purchase, id).Error; err != nil {
+	if err := q.Select("id", "comprobante_pago").First(&purchase, id).Error; err != nil {
 		purchaseError(w, r, err)
 		return
 	}
@@ -707,7 +721,7 @@ func (h *PurchaseHandler) proof(w http.ResponseWriter, r *http.Request, q *gorm.
 
 func (h *PurchaseHandler) RefundQRMine(w http.ResponseWriter, r *http.Request) {
 	principal, _ := middleware.CurrentPrincipal(r)
-	h.refundImage(w, r, h.db.Where("tourist_id = ?", principal.User.ID), "refund_qr")
+	h.refundImage(w, r, h.db.Where("turista_id = ?", principal.User.ID), "qr_reembolso")
 }
 
 func (h *PurchaseHandler) RefundQRAgency(w http.ResponseWriter, r *http.Request) {
@@ -716,12 +730,12 @@ func (h *PurchaseHandler) RefundQRAgency(w http.ResponseWriter, r *http.Request)
 		purchaseError(w, r, err)
 		return
 	}
-	h.refundImage(w, r, h.db.Where("agency_id = ?", agency.ID), "refund_qr")
+	h.refundImage(w, r, h.db.Where("agencia_id = ?", agency.ID), "qr_reembolso")
 }
 
 func (h *PurchaseHandler) RefundProofMine(w http.ResponseWriter, r *http.Request) {
 	principal, _ := middleware.CurrentPrincipal(r)
-	h.refundImage(w, r, h.db.Where("tourist_id = ?", principal.User.ID), "refund_proof")
+	h.refundImage(w, r, h.db.Where("turista_id = ?", principal.User.ID), "comprobante_reembolso")
 }
 
 func (h *PurchaseHandler) RefundProofAgency(w http.ResponseWriter, r *http.Request) {
@@ -730,7 +744,7 @@ func (h *PurchaseHandler) RefundProofAgency(w http.ResponseWriter, r *http.Reque
 		purchaseError(w, r, err)
 		return
 	}
-	h.refundImage(w, r, h.db.Where("agency_id = ?", agency.ID), "refund_proof")
+	h.refundImage(w, r, h.db.Where("agencia_id = ?", agency.ID), "comprobante_reembolso")
 }
 
 func (h *PurchaseHandler) refundImage(w http.ResponseWriter, r *http.Request, q *gorm.DB, column string) {
@@ -744,7 +758,7 @@ func (h *PurchaseHandler) refundImage(w http.ResponseWriter, r *http.Request, q 
 		return
 	}
 	image := purchase.RefundQR
-	if column == "refund_proof" {
+	if column == "comprobante_reembolso" {
 		image = purchase.RefundProof
 	}
 	if len(image) == 0 {
@@ -780,14 +794,14 @@ func (h *PurchaseHandler) Review(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		var purchaseLookup models.TourPackagePurchase
-		if err := tx.Select("id", "departure_id").Where("agency_id = ?", agency.ID).First(&purchaseLookup, id).Error; err != nil {
+		if err := tx.Select("id", "salida_id").Where("agencia_id = ?", agency.ID).First(&purchaseLookup, id).Error; err != nil {
 			return err
 		}
 		var departure models.TourPackageDeparture
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&departure, purchaseLookup.DepartureID).Error; err != nil {
 			return err
 		}
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("agency_id = ? AND departure_id = ?", agency.ID, departure.ID).First(&purchase, id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("agencia_id = ? AND salida_id = ?", agency.ID, departure.ID).First(&purchase, id).Error; err != nil {
 			return err
 		}
 		if purchase.Version != input.Version {
@@ -848,7 +862,7 @@ func (h *PurchaseHandler) Review(w http.ResponseWriter, r *http.Request) {
 func ownAgencyForPurchase(r *http.Request, db *gorm.DB) (models.Agency, error) {
 	principal, _ := middleware.CurrentPrincipal(r)
 	var agency models.Agency
-	err := db.Where("manager_id = ?", principal.User.ID).First(&agency).Error
+	err := db.Where("encargado_id = ?", principal.User.ID).First(&agency).Error
 	return agency, err
 }
 

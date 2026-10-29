@@ -75,7 +75,7 @@ func agencyView(a models.Agency, detail bool) agencyResponse {
 	return v
 }
 func agencyQuery(db *gorm.DB) *gorm.DB {
-	return db.Preload("Manager", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "first_name", "last_name", "email", "status") })
+	return db.Preload("Manager", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "nombres", "apellidos", "correo", "estado") })
 }
 
 func (h *AgencyHandler) Options(w http.ResponseWriter, r *http.Request) {
@@ -85,18 +85,18 @@ func (h *AgencyHandler) Options(w http.ResponseWriter, r *http.Request) {
 // Only IDs/names/emails needed for assignment; no account documents or passwords.
 func (h *AgencyHandler) Managers(w http.ResponseWriter, r *http.Request) {
 	var users []struct {
-		ID        uint64 `json:"id"`
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
+		ID        uint64 `gorm:"column:id" json:"id"`
+		FirstName string `gorm:"column:nombres" json:"first_name"`
+		LastName  string `gorm:"column:apellidos" json:"last_name"`
+		Email     string `gorm:"column:correo" json:"email"`
 	}
-	q := h.db.Model(&models.User{}).Select("id, first_name, last_name, email").Where("role = ? AND status = ?", models.RoleAgency, models.StatusActive).
-		Where("NOT EXISTS (SELECT 1 FROM agencies WHERE agencies.manager_id = users.id)")
+	q := h.db.Model(&models.User{}).Select("id, nombres, apellidos, correo").Where("rol = ? AND estado = ?", models.RoleAgency, models.StatusActive).
+		Where("NOT EXISTS (SELECT 1 FROM agencias WHERE agencias.encargado_id = usuarios.id)")
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
 		pattern := "%" + escapeLike(strings.ToLower(search)) + "%"
-		q = q.Where("LOWER(first_name || ' ' || last_name || ' ' || email) LIKE ? ESCAPE '!'", pattern)
+		q = q.Where("LOWER(nombres || ' ' || apellidos || ' ' || correo) LIKE ? ESCAPE '!'", pattern)
 	}
-	if err := q.Order("first_name, last_name, id").Limit(50).Scan(&users).Error; err != nil {
+	if err := q.Order("nombres, apellidos, id").Limit(50).Scan(&users).Error; err != nil {
 		agencyError(w, r, err)
 		return
 	}
@@ -107,14 +107,14 @@ func (h *AgencyHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, limit := queryInt(r, "page", 1, 1, 100000), queryInt(r, "limit", 12, 1, 50)
 	q := h.db.Model(&models.Agency{})
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
-		q = q.Where("LOWER(name || ' ' || city) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
+		q = q.Where("LOWER(nombre || ' ' || ciudad) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
 	}
 	if status := r.URL.Query().Get("status"); status != "" {
 		if !validStatus(status) {
 			respond.Error(w, r, 422, "AGENCY_VALIDATION", "Selecciona un estado válido", nil)
 			return
 		}
-		q = q.Where("status = ?", status)
+		q = q.Where("estado = ?", status)
 	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
@@ -122,7 +122,7 @@ func (h *AgencyHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var agencies []models.Agency
-	if err := agencyQuery(q).Omit("qr_image").Order("created_at DESC, id DESC").Limit(limit).Offset((page - 1) * limit).Find(&agencies).Error; err != nil {
+	if err := agencyQuery(q).Omit("imagen_qr").Order("creado_en DESC, id DESC").Limit(limit).Offset((page - 1) * limit).Find(&agencies).Error; err != nil {
 		agencyError(w, r, err)
 		return
 	}
@@ -139,7 +139,7 @@ func (h *AgencyHandler) get(w http.ResponseWriter, r *http.Request, mine bool) {
 	q := agencyQuery(h.db)
 	if mine {
 		p, _ := middleware.CurrentPrincipal(r)
-		q = q.Where("manager_id = ?", p.User.ID)
+		q = q.Where("encargado_id = ?", p.User.ID)
 	} else {
 		id, ok := pathID(w, r)
 		if !ok {
@@ -245,7 +245,7 @@ func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, min
 		} else {
 			q := tx.Clauses(clause.Locking{Strength: "UPDATE"})
 			if mine {
-				q = q.Where("manager_id = ?", p.User.ID)
+				q = q.Where("encargado_id = ?", p.User.ID)
 			} else {
 				q = q.Where("id = ?", id)
 			}
@@ -262,7 +262,7 @@ func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, min
 		}
 		if !mine {
 			var manager models.User
-			if err := tx.Where("id = ? AND role = ? AND status = ?", *input.ManagerID, models.RoleAgency, models.StatusActive).First(&manager).Error; err != nil {
+			if err := tx.Where("id = ? AND rol = ? AND estado = ?", *input.ManagerID, models.RoleAgency, models.StatusActive).First(&manager).Error; err != nil {
 				// An admin may deactivate an agency whose current manager is inactive.
 				if !errors.Is(err, gorm.ErrRecordNotFound) {
 					return err
@@ -270,12 +270,12 @@ func (h *AgencyHandler) save(w http.ResponseWriter, r *http.Request, create, min
 				if create || agency.ManagerID != *input.ManagerID {
 					return errAgencyManager
 				}
-				if err := tx.Where("id = ? AND role = ?", *input.ManagerID, models.RoleAgency).First(&manager).Error; err != nil {
+				if err := tx.Where("id = ? AND rol = ?", *input.ManagerID, models.RoleAgency).First(&manager).Error; err != nil {
 					return errAgencyManager
 				}
 			}
 			var assigned int64
-			if err := tx.Model(&models.Agency{}).Where("manager_id = ? AND id <> ?", *input.ManagerID, agency.ID).Count(&assigned).Error; err != nil {
+			if err := tx.Model(&models.Agency{}).Where("encargado_id = ? AND id <> ?", *input.ManagerID, agency.ID).Count(&assigned).Error; err != nil {
 				return err
 			}
 			if assigned > 0 {

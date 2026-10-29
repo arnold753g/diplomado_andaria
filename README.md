@@ -1,355 +1,48 @@
-# Andaria — versión para el diplomado
+# Andaria
 
-Módulos disponibles: usuarios, cuatro roles, perfiles y acceso mediante correo/contraseña o Google; agencias, encargados y configuración de tarifas y medios de pago; atracciones, clasificación, horarios, catálogo, mapas y favoritos. Paquetes incorpora borradores, tarifas, fotografías, itinerarios, publicación y programación de salidas únicas, diarias o por días específicos con ventanas de compra. El turista puede comprar cupos, adjuntar y corregir su comprobante, cancelar dentro de la política y elegir QR o cuenta bancaria para la devolución. La agencia revisa pagos, confirma cancelaciones por cupo mínimo y registra cada reembolso con comprobante dentro de 72 horas. La portada pública reúne el catálogo y cada rol recibe un panel con sus alertas y cifras operativas. Consulta las guías de [usuarios](docs/modulo-01-usuarios.md), [agencias](docs/modulo-02-agencias.md), [atracciones](docs/modulo-03-atracciones.md), [paquetes](docs/modulo-04-paquetes.md), [compras](docs/modulo-05-compras.md), [cancelaciones y reembolsos](docs/modulo-06-cancelaciones-reembolsos.md) y [home y paneles](docs/modulo-07-home-paneles.md).
+Plataforma turística con aplicación web y Android. Permite explorar atracciones y paquetes, comprar cupos, revisar pagos y gestionar cancelaciones y reembolsos.
 
-## Arquitectura
+## Estructura
 
-```text
-Browser
-  └─ Nuxt 4 / Vue 3 / Pinia / PrimeVue
-       └─ API JSON Go 1.25 / Gorilla Mux / GORM
-            └─ PostgreSQL 16
-```
+- `backend/`: API Go, PostgreSQL, migraciones SQL y pruebas.
+- `frontend/`: web Nuxt, Vue, Pinia y PrimeVue.
+- `mobile/`: aplicación Flutter para turistas.
+- `nginx/`: proxy y cabeceras de seguridad.
+- `.github/`: verificaciones automáticas de calidad y seguridad.
+- `tools/security/`: comprobación de dependencias.
 
-- `frontend/`: interfaz SSR, layouts `/app` y `/admin`, guards cliente y tema centralizado.
-- `mobile/`: app Android Flutter + Dart para turistas, con API compartida. Consulta [instalación y pruebas](mobile/README.md) y [contrato móvil](docs/app-android.md).
-- `backend/cmd/api`: servidor HTTP.
-- `backend/cmd/migrate`: migraciones SQL versionadas e idempotentes.
-- `backend/cmd/seed`: dos usuarios configurables, solo para desarrollo/pruebas.
-- `backend/internal/httpapi`: composición explícita de rutas y middleware.
-- `backend/internal/handlers`: autenticación, perfiles, usuarios, agencias, atracciones y favoritos.
-- `backend/internal/middleware`: sesión, CSRF, RBAC, rate limiting, logging y cabeceras.
-- `backend/internal/database/migrations`: fuente de verdad del esquema.
-- `nginx/`: reverse proxy de producción con servicios internos no publicados.
+## Ejecución local
 
-## Requisitos
+Requisitos: Go 1.27.3, Node.js 22, PostgreSQL y, para Android, Flutter 3.44.8 con Android SDK.
 
-- Go 1.25.12 o compatible con el `go.mod`.
-- Node.js 22 y npm.
-- PostgreSQL 16 o 17.
-- Docker Compose, opcional pero recomendado.
+1. Copia `.env.example` a `.env` y configura tu base de datos y secretos.
+2. Desde `backend/`, ejecuta `go run ./cmd/migrate` y `go run ./cmd/api`.
+3. Desde `frontend/`, ejecuta `npm ci` y `npm run dev`.
+4. Para Android, sigue las instrucciones de [mobile/README.md](mobile/README.md).
 
-## Instalación rápida con Docker
+También puedes iniciar los servicios locales con `docker compose up --build`.
 
-1. Crea la configuración local:
+## Funciones
 
-   ```powershell
-   Copy-Item .env.example .env
-   ```
+- Acceso por contraseña y Google, perfiles y permisos por rol.
+- Agencias, atracciones, favoritos, paquetes y salidas.
+- Compras con cupos, comprobantes y revisión manual de pagos.
+- Autorización de salidas, cancelaciones y seguimiento de devoluciones.
+- Comprobantes PDF y paneles por rol.
 
-2. Sustituye en `.env` al menos `DB_PASSWORD` y `SESSION_SECRET`. Usa valores aleatorios; `SESSION_SECRET` debe tener 32 caracteres o más.
+Los movimientos bancarios se realizan fuera de la plataforma. El sistema conserva sus evidencias y estados de revisión.
 
-3. Inicia los servicios:
+## Verificación
 
-   ```powershell
-   docker compose up --build
-   ```
-
-La base se publica únicamente en `127.0.0.1`, igual que frontend y backend. En desarrollo, el backend aplica las migraciones al arrancar porque `DB_AUTO_MIGRATE=true` en Compose.
-
-## Desarrollo local
-
-Primero crea la base PostgreSQL indicada por `DB_NAME` y copia `.env.example` como `.env` en la raíz. El backend carga `../.env` cuando se ejecuta desde su carpeta.
-
-Backend:
-
-```powershell
-Set-Location backend
-go mod download
-go run ./cmd/migrate
-go run ./cmd/api
-```
-
-Frontend, en otra terminal:
-
-```powershell
-Set-Location frontend
-npm ci
-npm run dev
-```
-
-Direcciones predeterminadas:
-
-- Frontend: `http://localhost:3000`
-- API: `http://localhost:8080/api/v1`
-- Salud: `http://localhost:8080/health`
-
-## Variables de entorno
-
-La lista completa y segura está en [`.env.example`](./.env.example). No se debe versionar `.env`.
-
-| Grupo | Variables principales | Propósito |
-| --- | --- | --- |
-| App | `APP_ENV`, `APP_NAME`, `APP_SHORT_NAME`, `LOG_LEVEL` | Entorno, nombre y nivel de logs |
-| Frontend | `NUXT_PUBLIC_API_BASE`, `NUXT_PUBLIC_REGISTRATION_ENABLED`, `FRONTEND_PORT` | URL pública de API y comportamiento público |
-| Backend | `SERVER_HOST`, `SERVER_PORT`, `BACKEND_PORT`, `ALLOWED_ORIGINS`, `TRUST_PROXY` | Escucha HTTP, CORS y proxies confiables |
-| Base de datos | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`, `DB_AUTO_MIGRATE` | Conexión y estrategia de migración |
-| Sesiones | `SESSION_SECRET`, `SESSION_TTL`, `SESSION_IDLE_TIMEOUT` | Firma CSRF y vencimientos absoluto/inactivo |
-| Cookies | `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAME_SITE` | Seguridad de la cookie HttpOnly |
-| Contraseñas | `PASSWORD_BCRYPT_COST`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT` | Hashing y bloqueo contra fuerza bruta |
-| Límites | `AUTH_RATE_LIMIT_PER_MINUTE`, `API_RATE_LIMIT_PER_MINUTE` | Límites por IP y proceso |
-| Seed | `SEED_DEVELOPMENT`, `DEV_*` | Usuarios configurables no productivos |
-
-La aplicación falla al arrancar si falta una variable crítica o si producción intenta usar una cookie no segura, un secreto corto/placeholder, CORS comodín o una combinación `SameSite=None` sin `Secure`.
-
-## Base de datos y migraciones
-
-El esquema se crea únicamente desde SQL versionado. No depende de cambios manuales ni de `AutoMigrate` de GORM.
-
-```powershell
-Set-Location backend
-go run ./cmd/migrate
-```
-
-El comando puede ejecutarse repetidamente: registra versiones en `schema_migrations` y aplica cada archivo una sola vez dentro de una transacción. Para agregar una migración, crea el siguiente archivo secuencial en `backend/internal/database/migrations`, por ejemplo `000002_feature.sql`.
-
-En producción, el servicio `migrate` de `docker-compose.prod.yml` debe terminar correctamente antes de que el backend inicie.
-
-## Seed de desarrollo
-
-El seed crea exactamente un `admin` y un `turista`, usando correos y contraseñas definidos por variables:
-
-```powershell
-$env:SEED_DEVELOPMENT='true'
-Set-Location backend
-go run ./cmd/seed
-```
-
-Con Docker:
-
-```powershell
-docker compose run --rm backend /app/seed
-```
-
-El comando rechaza `APP_ENV=production`, exige confirmación mediante `SEED_DEVELOPMENT=true`, valida la política de contraseña y nunca contiene contraseñas codificadas en el repositorio.
-
-Para cargar tres paquetes demostrativos con programación única, diaria y por días específicos, ejecuta después de crear la agencia de desarrollo:
-
-```powershell
-Set-Location backend
-go run ./cmd/seed-demo-packages
-```
-
-Este segundo comando también está limitado a desarrollo. Es idempotente mientras sus paquetes no tengan compras y no modifica datos comerciales ajenos.
-
-## Autenticación
-
-No se utilizan JWT ni tokens en `localStorage`/`sessionStorage`.
-
-1. Login genera 256 bits aleatorios.
-2. El valor crudo vive solo en una cookie `HttpOnly` de mismo origen. Su alcance `/` permite que Nuxt valide la sesión durante SSR sin exponerla a JavaScript.
-3. PostgreSQL almacena únicamente SHA-256 del token.
-4. El frontend conserva en memoria un token CSRF HMAC; toda mutación autenticada debe enviarlo en `X-CSRF-Token`.
-5. La sesión tiene expiración absoluta e inactividad deslizante.
-6. Logout, cambio de contraseña, cambio de rol y desactivación revocan sesiones en servidor.
-
-La cookie usa `Secure=true` obligatoriamente en producción. `SameSite=lax` es el valor recomendado para un frontend y API del mismo sitio.
-
-## Usuarios y roles
-
-- `admin`: `/admin`, dashboard, listado/detalle de usuarios, cambio controlado de rol/estado y perfil propio.
-- `turista`: `/app`, perfil y cambio de contraseña.
-- `encargado_agencia`: `/app`, perfil y configuración de su agencia asignada.
-- `encargado_atraccion`: `/app`, perfil y edición de una o varias atracciones asignadas.
-
-El registro público, cuando está habilitado, siempre crea `turista`. El frontend orienta la navegación, pero el backend es la autoridad: todas las rutas `/admin/*` pasan por autenticación y `RequireRoles("admin")`. Un administrador tampoco puede cambiar su propio rol o estado desde la tabla administrativa.
-
-## Rutas base
-
-Frontend:
-
-```text
-/                          (portada pública)
-/login
-/register                 (solo si el registro está habilitado)
-/app
-/app/profile
-/app/favorites
-/app/purchases
-/admin
-/admin/users
-/admin/agencies
-/admin/attractions
-/agency/packages
-/agency/packages/new
-/agency/packages/:id
-/agency/purchases
-/managed-attractions
-/attractions
-/attractions/:id
-/packages
-/packages/:id
-/packages/:id/purchase
-/403
-/cualquier-ruta-invalida  (404)
-```
-
-API:
-
-```text
-GET    /health
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-GET    /api/v1/auth/session
-POST   /api/v1/auth/logout
-GET    /api/v1/me
-GET    /api/v1/me/dashboard
-PATCH  /api/v1/me
-POST   /api/v1/me/password
-GET    /api/v1/admin/dashboard
-GET    /api/v1/admin/users
-GET    /api/v1/admin/users/:id
-PATCH  /api/v1/admin/users/:id/role
-PATCH  /api/v1/admin/users/:id/status
-GET    /api/v1/attractions
-GET    /api/v1/attractions/:id
-GET    /api/v1/admin/attractions
-POST   /api/v1/admin/attractions
-GET    /api/v1/managed-attractions
-GET    /api/v1/me/favorites
-PUT    /api/v1/me/favorites/:id
-DELETE /api/v1/me/favorites/:id
-GET    /api/v1/packages/options
-GET    /api/v1/packages
-GET    /api/v1/packages/:id
-GET    /api/v1/packages/:id/photos/:photo
-GET    /api/v1/agency/packages
-POST   /api/v1/agency/packages
-GET    /api/v1/agency/packages/attractions
-GET    /api/v1/agency/packages/:id
-PUT    /api/v1/agency/packages/:id
-GET    /api/v1/agency/packages/:id/photos/:photo
-PATCH  /api/v1/agency/packages/:id/departures/:departure
-POST   /api/v1/agency/packages/:id/departures/:departure/cancel
-POST   /api/v1/agency/packages/:id/departures/:departure/minimum-refund
-GET    /api/v1/me/packages/:id/payment-options
-GET    /api/v1/me/purchases
-POST   /api/v1/me/purchases
-GET    /api/v1/me/purchases/:id
-GET    /api/v1/me/purchases/:id/proof
-PATCH  /api/v1/me/purchases/:id/proof
-POST   /api/v1/me/purchases/:id/cancel
-PATCH  /api/v1/me/purchases/:id/refund-destination
-GET    /api/v1/me/purchases/:id/refund-qr
-GET    /api/v1/me/purchases/:id/refund-proof
-GET    /api/v1/agency/purchases
-GET    /api/v1/agency/purchases/:id
-GET    /api/v1/agency/purchases/:id/proof
-GET    /api/v1/agency/purchases/:id/refund-qr
-GET    /api/v1/agency/purchases/:id/refund-proof
-PATCH  /api/v1/agency/purchases/:id/review
-PATCH  /api/v1/agency/purchases/:id/refund
-```
-
-## Tema visual
-
-La fuente de verdad es [`frontend/assets/theme.css`](./frontend/assets/theme.css).
-
-Para cambiar colores, edita una vez:
-
-```css
---color-primary          /* #BAFE06: CTA, enlaces e indicadores */
---color-secondary        /* #AACA02: hover y degradados */
---color-accent           /* #7D9505: brillo y decoración */
---color-accent-dark      /* #333D04: superficies teñidas */
---color-background       /* #080C0F: fondo principal */
---color-background-deep  /* #010100: secciones profundas */
---color-surface          /* #111517: cards */
---color-surface-elevated /* #181C1D: inputs y elevación */
---color-text             /* #F8F9F2: contenido principal */
---color-text-muted       /* #B9BABA: contenido secundario */
---color-text-disabled    /* #757B7A: contenido desactivado */
---color-border           /* #303432: bordes y separadores */
---color-success
---color-warning
---color-danger
-```
-
-La plantilla utiliza una identidad oscura única y la clase raíz `.app-dark` permite que PrimeVue consuma su variante oscura. Los componentes consumen tokens semánticos y no contienen paletas de cliente dispersas.
-
-Para cambiar fuentes, edita:
-
-```css
---font-primary
---font-secondary
---font-size-base
---font-weight-regular
---font-weight-medium
---font-weight-semibold
---font-weight-bold
---font-weight-extrabold
-```
-
-La fuente configurada es Outfit y se carga en `frontend/nuxt.config.ts` únicamente en los pesos 400, 500, 600, 700 y 800. Si agregas fuentes propias, define `@font-face` en el mismo archivo y mantén los archivos bajo `frontend/public/fonts/`.
-
-## Branding
-
-- Nombre completo: `APP_NAME` / `NUXT_PUBLIC_APP_NAME`.
-- Nombre corto: `APP_SHORT_NAME` / `NUXT_PUBLIC_APP_SHORT_NAME`.
-- Logo: reemplaza `frontend/public/branding/logo.svg` conservando la ruta.
-- Favicon: reemplaza `frontend/public/branding/favicon.svg`.
-- Colores y fuentes: `frontend/assets/theme.css`.
-
-No hay referencias al logo, imágenes ni textos comerciales del proyecto original.
-
-## Componentes reutilizables
-
-PrimeVue cubre Button, Input, Password, Select, Dialog, ConfirmDialog, Card, DataTable, Tag, Message, Toast, Spinner y Paginator. Se añadieron `AppShell`, `EmptyState` y `LoadingState` solo donde existe valor común real. Esto evita mantener duplicados de la librería UI.
-
-## Calidad y pruebas
-
-```powershell
-# Backend
-Set-Location backend
-go test ./...
-go vet ./...
-go build ./cmd/api
-go build ./cmd/migrate
-go build ./cmd/seed
-
-# Frontend
-Set-Location ../frontend
-npm test
-npm run typecheck
-npm run build
-npm audit --omit=dev
-```
-
-No hay script de lint separado; `go vet`, `gofmt` y el typecheck estricto cubren las comprobaciones estáticas disponibles en este starter.
-
-La última revisión funcional y técnica está resumida en [auditoría integral](docs/auditoria-integral.md), con el resultado detallado de Medusa Auditor en `.medusa-auditor/results/integrated-release-report.md`.
+- Backend: `go test ./... -count=1` y `go vet ./...`.
+- Web: `npm test`, `npm run typecheck` y `npm run build`.
+- Android: `flutter analyze`, `flutter test` y `flutter build apk --debug`.
+- Para las pruebas de integración, configura `TEST_DATABASE_DSN` con una base de pruebas: se utilizan esquemas temporales.
 
 ## Producción
 
-La guía operativa completa está en [despliegue de producción](docs/despliegue-produccion.md) y la plantilla segura en [`.env.production.example`](./.env.production.example).
+Configura `.env.production` a partir de `.env.production.example`, secretos propios y un proxy HTTPS. El archivo `backend/scripts/database-roles.sql` permite preparar roles separados para migraciones y ejecución. Aplica las migraciones antes de iniciar la API.
 
-1. Usa secretos aleatorios externos al repositorio.
-2. Configura `APP_ENV=production`, orígenes HTTPS exactos y `NUXT_PUBLIC_API_BASE` público.
-3. Mantén `AUTH_COOKIE_SECURE=true`; el Compose de producción lo fuerza.
-4. Termina TLS en un balanceador/reverse proxy o amplía Nginx con certificados administrados. No publiques HTTP directo a Internet.
-5. Usa `DB_SSLMODE=require` cuando PostgreSQL esté fuera de la red privada.
-6. Mantén `REGISTRATION_ENABLED=false` si no necesitas altas públicas.
-7. Cambia el rate limiter en memoria por Redis si despliegas varias réplicas.
-8. Ejecuta backups, monitorización y rotación de secretos según tu infraestructura.
+La composición de producción se inicia con `docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d`.
 
-Comando base después de crear `.env.production`:
-
-```powershell
-docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
-```
-
-PostgreSQL, backend y frontend no publican puertos en el Compose de producción. Nginx se enlaza por defecto a `127.0.0.1:8088` para recibir tráfico de un proxy TLS.
-
-## Crear un proyecto nuevo desde esta base
-
-1. Copia esta carpeta sin `.git`, `.env`, `node_modules`, `.nuxt`, `.output` ni binarios.
-2. Crea un `.env` nuevo desde `.env.example` y genera secretos nuevos.
-3. Cambia nombre, logo, favicon, colores y fuentes en los puntos descritos arriba.
-4. Conserva `users`, `auth_sessions`, `/me` y RBAC como infraestructura.
-5. Agrega cada nuevo dominio en paquetes backend y páginas/componentes frontend propios; no mezcles reglas comerciales dentro de autenticación.
-6. Añade migraciones secuenciales y tests de autorización para cada endpoint nuevo.
-7. Inicializa un repositorio Git nuevo y ejecuta toda la batería de calidad.
-
-## Alcance deliberadamente excluido
-
-La plantilla no inventa correo transaccional, verificación de email, recuperación de contraseña, MFA, almacenamiento de archivos ni permisos granulares. Esas capacidades requieren decisiones de proveedor y producto. Añádelas cuando el nuevo sistema tenga requisitos concretos.
+Los entornos reales, claves de firma, compilaciones, auditorías y documentación académica se conservan fuera del repositorio.

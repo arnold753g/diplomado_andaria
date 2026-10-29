@@ -42,11 +42,11 @@ type minimumRefundInput struct {
 func cancelDeparturePurchases(tx *gorm.DB, departure *models.TourPackageDeparture, userID uint64, reason string, now time.Time) error {
 	due := now.Add(refundProcessingWindow)
 	if err := tx.Model(&models.TourPackagePurchase{}).
-		Where("departure_id = ? AND status IN ?", departure.ID, []string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed}).
+		Where("salida_id = ? AND estado IN ?", departure.ID, []string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed}).
 		Updates(map[string]any{
-			"status": models.PurchaseRefundPending, "rejection_reason": "", "refund_reason": reason,
-			"refund_requested_at": now, "refund_due_at": due, "cancellation_reason": reason, "cancelled_at": now,
-			"agency_review_user_id": userID, "reviewed_at": now, "version": gorm.Expr("version + 1"),
+			"estado": models.PurchaseRefundPending, "motivo_rechazo": "", "motivo_reembolso": reason,
+			"reembolso_solicitado_en": now, "reembolso_vence_en": due, "motivo_cancelacion": reason, "cancelado_en": now,
+			"usuario_revision_agencia_id": userID, "revisado_en": now, "version": gorm.Expr("version + 1"),
 		}).Error; err != nil {
 		return err
 	}
@@ -129,10 +129,10 @@ func (h *PackageHandler) UpdateDeparture(w http.ResponseWriter, r *http.Request)
 			return errPackageAgencyInactive
 		}
 		var item models.TourPackage
-		if err := tx.Select("id").Where("id = ? AND agency_id = ?", packageID, agency.ID).First(&item).Error; err != nil {
+		if err := tx.Select("id").Where("id = ? AND agencia_id = ?", packageID, agency.ID).First(&item).Error; err != nil {
 			return err
 		}
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND package_id = ?", departureID, packageID).First(&departure).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND paquete_id = ?", departureID, packageID).First(&departure).Error; err != nil {
 			return err
 		}
 		if departure.Version != input.Version {
@@ -204,10 +204,10 @@ func (h *PackageHandler) CancelDeparture(w http.ResponseWriter, r *http.Request)
 			return errPackageAgencyInactive
 		}
 		var item models.TourPackage
-		if err := tx.Select("id").Where("id = ? AND agency_id = ?", packageID, agency.ID).First(&item).Error; err != nil {
+		if err := tx.Select("id").Where("id = ? AND agencia_id = ?", packageID, agency.ID).First(&item).Error; err != nil {
 			return err
 		}
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND package_id = ?", departureID, packageID).First(&departure).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND paquete_id = ?", departureID, packageID).First(&departure).Error; err != nil {
 			return err
 		}
 		if departure.Version != input.Version {
@@ -263,10 +263,10 @@ func (h *PackageHandler) ConfirmMinimumRefund(w http.ResponseWriter, r *http.Req
 			return errPackageAgencyInactive
 		}
 		var item models.TourPackage
-		if err := tx.Select("id").Where("id = ? AND agency_id = ?", packageID, agency.ID).First(&item).Error; err != nil {
+		if err := tx.Select("id").Where("id = ? AND agencia_id = ?", packageID, agency.ID).First(&item).Error; err != nil {
 			return err
 		}
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND package_id = ?", departureID, packageID).First(&departure).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? AND paquete_id = ?", departureID, packageID).First(&departure).Error; err != nil {
 			return err
 		}
 		if departure.Version != input.Version {

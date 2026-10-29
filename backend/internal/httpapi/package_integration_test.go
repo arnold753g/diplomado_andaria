@@ -132,7 +132,7 @@ func TestPackageDraftPublicationAndAgencyIsolation(t *testing.T) {
 	if err := png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 4, 4))); err != nil {
 		t.Fatal(err)
 	}
-	futureDate := time.Now().In(time.FixedZone("America/La_Paz", -4*60*60)).AddDate(0, 0, 7).Format("2006-01-02")
+	futureDate := time.Now().In(time.FixedZone("America/La_Paz", -4*60*60)).AddDate(0, 0, 400).Format("2006-01-02")
 	publishedPayload := map[string]any{
 		"name": "Ruta chapaca", "description": "Dos días para descubrir paisajes y cultura de Tarija.", "duration_days": 2, "duration_nights": 1,
 		"national_price_cents": 25000, "foreign_surcharge_cents": 5000, "cancellation_allowed": true, "cancellation_notice_hours": 48, "published": true, "version": 1,
@@ -142,9 +142,9 @@ func TestPackageDraftPublicationAndAgencyIsolation(t *testing.T) {
 			{"day_number": 2, "title": "Despedida", "attraction_ids": []uint64{attraction.ID}},
 		},
 		"schedule": map[string]any{
-			"frequency_type": "single", "valid_from": futureDate, "valid_until": futureDate,
+			"frequency_type": "single", "valid_from": futureDate,
 			"departure_time": "08:30", "meeting_time": "08:00", "default_min_capacity": 4, "default_max_capacity": 12,
-			"booking_cutoff_hours": 24, "maximum_advance_days": 180, "default_meeting_point": "Plaza principal",
+			"booking_cutoff_hours": 24, "default_meeting_point": "Plaza principal",
 		},
 	}
 	published := read(request("PUT", path, publishedPayload, 0, 200))
@@ -248,7 +248,7 @@ func TestPackageDraftPublicationAndAgencyIsolation(t *testing.T) {
 	photoPath := fmt.Sprintf("%s/photos/%d", path, published.Photos[0].ID)
 	request("GET", photoPath, nil, 1, 404)
 	request("PUT", path, publishedPayload, 0, 409)
-	if err := db.Model(&models.Attraction{}).Where("id = ?", attraction.ID).Update("published", false).Error; err != nil {
+	if err := db.Model(&models.Attraction{}).Where("id = ?", attraction.ID).Update("publicado", false).Error; err != nil {
 		t.Fatal(err)
 	}
 	publicDetailResponse = request("GET", publicPath, nil, -1, 200)
@@ -260,7 +260,7 @@ func TestPackageDraftPublicationAndAgencyIsolation(t *testing.T) {
 			t.Fatalf("unpublished attraction remained linked in public itinerary: %s", publicDetailResponse.Body.String())
 		}
 	}
-	if err := db.Model(&models.Agency{}).Where("id = ?", agencies[0].ID).Update("status", models.StatusInactive).Error; err != nil {
+	if err := db.Model(&models.Agency{}).Where("id = ?", agencies[0].ID).Update("estado", models.StatusInactive).Error; err != nil {
 		t.Fatal(err)
 	}
 	request("GET", publicPath, nil, -1, 404)

@@ -32,7 +32,7 @@ func TestConcurrentAdminChangesKeepOneActiveAdmin(t *testing.T) {
 				if err := guardLastAdmin(tx, id, models.RoleUser, models.StatusActive); err != nil {
 					return err
 				}
-				return tx.Model(&models.User{}).Where("id = ?", id).Update("role", models.RoleUser).Error
+				return tx.Model(&models.User{}).Where("id = ?", id).Update("rol", models.RoleUser).Error
 			})
 		}(user.ID)
 	}
@@ -59,7 +59,7 @@ func TestSessionCannotBeIssuedFromStaleCredentials(t *testing.T) {
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Model(&models.User{}).Where("id = ?", user.ID).Update("password_hash", "new-hash").Error; err != nil {
+	if err := db.Model(&models.User{}).Where("id = ?", user.ID).Update("hash_contrasena", "new-hash").Error; err != nil {
 		t.Fatal(err)
 	}
 	h, err := NewAuthHandler(db, config.Config{PasswordBcryptCost: 10, SessionTTL: time.Hour})

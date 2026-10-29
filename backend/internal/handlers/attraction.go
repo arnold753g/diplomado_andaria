@@ -86,26 +86,26 @@ func attractionView(a models.Attraction, scope string) any {
 	return v
 }
 func attractionPreload(q *gorm.DB, scope string) *gorm.DB {
-	q = q.Preload("Subcategories", func(tx *gorm.DB) *gorm.DB { return tx.Order("position") }).Preload("Subcategories.Subcategory")
-	q = q.Preload("Photos", func(tx *gorm.DB) *gorm.DB { return tx.Omit("image").Order("position, id") })
+	q = q.Preload("Subcategories", func(tx *gorm.DB) *gorm.DB { return tx.Order("posicion") }).Preload("Subcategories.Subcategory")
+	q = q.Preload("Photos", func(tx *gorm.DB) *gorm.DB { return tx.Omit("imagen").Order("posicion, id") })
 	if scope != "public" {
-		q = q.Preload("Manager", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "first_name", "last_name", "email", "status") })
+		q = q.Preload("Manager", func(tx *gorm.DB) *gorm.DB { return tx.Select("id", "nombres", "apellidos", "correo", "estado") })
 	}
 	return q
 }
 func attractionScope(q *gorm.DB, r *http.Request, scope string) *gorm.DB {
 	if scope == "public" {
-		return q.Where("attractions.status = ? AND attractions.published = TRUE", models.StatusActive)
+		return q.Where("atracciones.estado = ? AND atracciones.publicado = TRUE", models.StatusActive)
 	}
 	if scope == "mine" {
 		p, _ := middleware.CurrentPrincipal(r)
-		return q.Where("attractions.manager_id = ?", p.User.ID)
+		return q.Where("atracciones.encargado_id = ?", p.User.ID)
 	}
 	return q
 }
 func (h *AttractionHandler) Options(w http.ResponseWriter, r *http.Request) {
 	var categories []models.AttractionCategory
-	if err := h.db.Preload("Subcategories", func(tx *gorm.DB) *gorm.DB { return tx.Order("position, id") }).Order("position, id").Find(&categories).Error; err != nil {
+	if err := h.db.Preload("Subcategories", func(tx *gorm.DB) *gorm.DB { return tx.Order("posicion, id") }).Order("posicion, id").Find(&categories).Error; err != nil {
 		attractionError(w, r, err)
 		return
 	}
@@ -113,16 +113,16 @@ func (h *AttractionHandler) Options(w http.ResponseWriter, r *http.Request) {
 }
 func (h *AttractionHandler) Managers(w http.ResponseWriter, r *http.Request) {
 	var users []struct {
-		ID        uint64 `json:"id"`
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
+		ID        uint64 `gorm:"column:id" json:"id"`
+		FirstName string `gorm:"column:nombres" json:"first_name"`
+		LastName  string `gorm:"column:apellidos" json:"last_name"`
+		Email     string `gorm:"column:correo" json:"email"`
 	}
-	q := h.db.Model(&models.User{}).Select("id, first_name, last_name, email").Where("role = ? AND status = ?", models.RoleAttraction, models.StatusActive)
+	q := h.db.Model(&models.User{}).Select("id, nombres, apellidos, correo").Where("rol = ? AND estado = ?", models.RoleAttraction, models.StatusActive)
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
-		q = q.Where("LOWER(first_name || ' ' || last_name || ' ' || email) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
+		q = q.Where("LOWER(nombres || ' ' || apellidos || ' ' || correo) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
 	}
-	if err := q.Order("first_name, last_name, id").Limit(50).Scan(&users).Error; err != nil {
+	if err := q.Order("nombres, apellidos, id").Limit(50).Scan(&users).Error; err != nil {
 		attractionError(w, r, err)
 		return
 	}
@@ -145,10 +145,10 @@ func (h *AttractionHandler) list(w http.ResponseWriter, r *http.Request, scope s
 	q := attractionScope(h.db.Model(&models.Attraction{}), r, scope)
 	if favorites {
 		p, _ := middleware.CurrentPrincipal(r)
-		q = q.Where("EXISTS (SELECT 1 FROM attraction_favorites f WHERE f.attraction_id = attractions.id AND f.user_id = ?)", p.User.ID)
+		q = q.Where("EXISTS (SELECT 1 FROM favoritos_atracciones f WHERE f.atraccion_id = atracciones.id AND f.usuario_id = ?)", p.User.ID)
 	}
 	if search := strings.TrimSpace(r.URL.Query().Get("search")); search != "" {
-		q = q.Where("LOWER(name || ' ' || city) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
+		q = q.Where("LOWER(nombre || ' ' || ciudad) LIKE ? ESCAPE '!'", "%"+escapeLike(strings.ToLower(search))+"%")
 	}
 	for _, filter := range []struct {
 		key    string
@@ -160,9 +160,9 @@ func (h *AttractionHandler) list(w http.ResponseWriter, r *http.Request, scope s
 				return
 			}
 			if filter.key == "category" {
-				q = q.Where("EXISTS (SELECT 1 FROM attraction_classifications ac JOIN attraction_subcategories s ON s.id = ac.subcategory_id JOIN attraction_categories c ON c.id = s.category_id WHERE ac.attraction_id = attractions.id AND c.name = ?)", value)
+				q = q.Where("EXISTS (SELECT 1 FROM clasificaciones_atracciones ac JOIN subcategorias_atracciones s ON s.id = ac.subcategoria_id JOIN categorias_atracciones c ON c.id = s.categoria_id WHERE ac.atraccion_id = atracciones.id AND c.nombre = ?)", value)
 			} else {
-				q = q.Where(filter.key+" = ?", value)
+				q = q.Where("departamento = ?", value)
 			}
 		}
 	}
@@ -172,7 +172,7 @@ func (h *AttractionHandler) list(w http.ResponseWriter, r *http.Request, scope s
 			respond.Error(w, r, 422, "ATTRACTION_VALIDATION", "Subcategoría inválida", nil)
 			return
 		}
-		q = q.Where("EXISTS (SELECT 1 FROM attraction_classifications ac WHERE ac.attraction_id = attractions.id AND ac.subcategory_id = ?)", id)
+		q = q.Where("EXISTS (SELECT 1 FROM clasificaciones_atracciones ac WHERE ac.atraccion_id = atracciones.id AND ac.subcategoria_id = ?)", id)
 	}
 	if scope != "public" {
 		if status := r.URL.Query().Get("status"); status != "" {
@@ -180,7 +180,7 @@ func (h *AttractionHandler) list(w http.ResponseWriter, r *http.Request, scope s
 				respond.Error(w, r, 422, "ATTRACTION_VALIDATION", "Estado inválido", nil)
 				return
 			}
-			q = q.Where("status = ?", status)
+			q = q.Where("estado = ?", status)
 		}
 	}
 	var total int64
@@ -189,7 +189,7 @@ func (h *AttractionHandler) list(w http.ResponseWriter, r *http.Request, scope s
 		return
 	}
 	var attractions []models.Attraction
-	if err := attractionPreload(q, scope).Order("attractions.created_at DESC, attractions.id DESC").Limit(limit).Offset((page - 1) * limit).Find(&attractions).Error; err != nil {
+	if err := attractionPreload(q, scope).Order("atracciones.creado_en DESC, atracciones.id DESC").Limit(limit).Offset((page - 1) * limit).Find(&attractions).Error; err != nil {
 		attractionError(w, r, err)
 		return
 	}
@@ -234,7 +234,7 @@ func (h *AttractionHandler) photo(w http.ResponseWriter, r *http.Request, scope 
 	var photo models.AttractionPhoto
 	// One query checks visibility and photo ownership, including unpublished images.
 	permitted := attractionScope(h.db.Model(&models.Attraction{}).Select("id"), r, scope).Where("id = ?", id)
-	if err := h.db.Where("id = ? AND attraction_id IN (?)", photoID, permitted).First(&photo).Error; err != nil {
+	if err := h.db.Where("id = ? AND atraccion_id IN (?)", photoID, permitted).First(&photo).Error; err != nil {
 		attractionError(w, r, err)
 		return
 	}
@@ -281,7 +281,7 @@ func (h *AttractionHandler) save(w http.ResponseWriter, r *http.Request, create,
 	}
 	primaryCategory := ""
 	if len(fields) == 0 {
-		if err := h.db.Model(&models.AttractionCategory{}).Select("name").Where("id = (SELECT category_id FROM attraction_subcategories WHERE id = ?)", input.SubcategoryIDs[0]).Scan(&primaryCategory).Error; err != nil {
+		if err := h.db.Model(&models.AttractionCategory{}).Select("nombre").Where("id = (SELECT categoria_id FROM subcategorias_atracciones WHERE id = ?)", input.SubcategoryIDs[0]).Scan(&primaryCategory).Error; err != nil {
 			attractionError(w, r, err)
 			return
 		}
@@ -356,7 +356,7 @@ func (h *AttractionHandler) save(w http.ResponseWriter, r *http.Request, create,
 			q := tx.Clauses(clause.Locking{Strength: "UPDATE"})
 			if mine {
 				p, _ := middleware.CurrentPrincipal(r)
-				q = q.Where("manager_id = ?", p.User.ID)
+				q = q.Where("encargado_id = ?", p.User.ID)
 			}
 			if err := q.First(&a, id).Error; err != nil {
 				return err
@@ -371,7 +371,7 @@ func (h *AttractionHandler) save(w http.ResponseWriter, r *http.Request, create,
 		}
 		if !mine {
 			var manager models.User
-			if err := tx.Where("id = ? AND role = ?", *input.ManagerID, models.RoleAttraction).First(&manager).Error; err != nil {
+			if err := tx.Where("id = ? AND rol = ?", *input.ManagerID, models.RoleAttraction).First(&manager).Error; err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return errAttractionManager
 				}
@@ -416,7 +416,7 @@ func (h *AttractionHandler) save(w http.ResponseWriter, r *http.Request, create,
 				return err
 			}
 		}
-		if err := tx.Where("attraction_id = ?", a.ID).Delete(&models.AttractionClassification{}).Error; err != nil {
+		if err := tx.Where("atraccion_id = ?", a.ID).Delete(&models.AttractionClassification{}).Error; err != nil {
 			return err
 		}
 		for i, id := range input.SubcategoryIDs {
@@ -427,7 +427,7 @@ func (h *AttractionHandler) save(w http.ResponseWriter, r *http.Request, create,
 		keep := make([]uint64, 0, len(input.Photos))
 		for i, photo := range input.Photos {
 			if photo.ID > 0 {
-				res := tx.Model(&models.AttractionPhoto{}).Where("id = ? AND attraction_id = ?", photo.ID, a.ID).Update("position", i)
+				res := tx.Model(&models.AttractionPhoto{}).Where("id = ? AND atraccion_id = ?", photo.ID, a.ID).Update("posicion", i)
 				if res.Error != nil {
 					return res.Error
 				}
@@ -443,7 +443,7 @@ func (h *AttractionHandler) save(w http.ResponseWriter, r *http.Request, create,
 				keep = append(keep, photo.ID)
 			}
 		}
-		q := tx.Where("attraction_id = ?", a.ID)
+		q := tx.Where("atraccion_id = ?", a.ID)
 		if len(keep) > 0 {
 			q = q.Where("id NOT IN ?", keep)
 		}
@@ -499,7 +499,7 @@ func (h *AttractionHandler) Favorite(w http.ResponseWriter, r *http.Request) {
 	}
 	p, _ := middleware.CurrentPrincipal(r)
 	if r.Method == http.MethodDelete {
-		if err := h.db.Where("user_id = ? AND attraction_id = ?", p.User.ID, id).Delete(&models.AttractionFavorite{}).Error; err != nil {
+		if err := h.db.Where("usuario_id = ? AND atraccion_id = ?", p.User.ID, id).Delete(&models.AttractionFavorite{}).Error; err != nil {
 			attractionError(w, r, err)
 			return
 		}
@@ -517,7 +517,7 @@ func (h *AttractionHandler) Favorite(w http.ResponseWriter, r *http.Request) {
 			return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&models.AttractionFavorite{UserID: p.User.ID, AttractionID: id}).Error
 		}
 		var count int64
-		if err := tx.Model(&models.AttractionFavorite{}).Where("user_id = ? AND attraction_id = ?", p.User.ID, id).Count(&count).Error; err != nil {
+		if err := tx.Model(&models.AttractionFavorite{}).Where("usuario_id = ? AND atraccion_id = ?", p.User.ID, id).Count(&count).Error; err != nil {
 			return err
 		}
 		favorite = count > 0

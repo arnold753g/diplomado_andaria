@@ -32,7 +32,7 @@ func DemoPackages(db *gorm.DB, appEnv string) ([]models.TourPackage, error) {
 		return nil, errors.New("demo packages are disabled in production")
 	}
 	var agency models.Agency
-	if err := db.Where("status = ? AND published = TRUE", models.StatusActive).Order("id").First(&agency).Error; err != nil {
+	if err := db.Where("estado = ? AND publicado = TRUE", models.StatusActive).Order("id").First(&agency).Error; err != nil {
 		return nil, fmt.Errorf("an active published agency is required: %w", err)
 	}
 	if !agency.AcceptsQR && !agency.AcceptsTransfer {
@@ -66,13 +66,13 @@ func saveDemoPackage(db *gorm.DB, agency models.Agency, spec demoPackageSpec) (m
 	var result models.TourPackage
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var existing models.TourPackage
-		lookup := tx.Where("agency_id = ? AND name = ?", agency.ID, spec.Name).Limit(1).Find(&existing)
+		lookup := tx.Where("agencia_id = ? AND nombre = ?", agency.ID, spec.Name).Limit(1).Find(&existing)
 		if lookup.Error != nil {
 			return lookup.Error
 		}
 		if lookup.RowsAffected > 0 {
 			var purchases int64
-			if err := tx.Model(&models.TourPackagePurchase{}).Where("package_id = ?", existing.ID).Count(&purchases).Error; err != nil {
+			if err := tx.Model(&models.TourPackagePurchase{}).Where("paquete_id = ?", existing.ID).Count(&purchases).Error; err != nil {
 				return err
 			}
 			if purchases > 0 {

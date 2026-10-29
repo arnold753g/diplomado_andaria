@@ -80,7 +80,7 @@ func TestGoogleMobileUsesExistingIdentityAndRejectsOtherRoles(t *testing.T) {
 		}
 		id = envelope.Data.User.ID
 	}
-	if err := db.Model(&models.User{}).Where("id = ?", id).Update("role", models.RoleAgency).Error; err != nil {
+	if err := db.Model(&models.User{}).Where("id = ?", id).Update("rol", models.RoleAgency).Error; err != nil {
 		t.Fatal(err)
 	}
 	w := send()

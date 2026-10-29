@@ -38,7 +38,7 @@ func Development(db *gorm.DB, appEnv string, bcryptCost int) error {
 		user := models.User{Email: email, PasswordHash: hash, FirstName: account.firstName,
 			LastName: account.lastName, Role: account.role, Status: models.StatusActive}
 		var existing models.User
-		result := db.Where("email = ?", email).Limit(1).Find(&existing)
+		result := db.Where("correo = ?", email).Limit(1).Find(&existing)
 		err = result.Error
 		switch {
 		case err == nil && result.RowsAffected == 0:

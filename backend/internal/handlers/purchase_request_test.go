@@ -165,7 +165,7 @@ func TestMobilePurchaseIdempotencyAndExpectedPrice(t *testing.T) {
 	}
 	assertCapacity(4)
 	// A replay still returns the accepted purchase after its departure closes.
-	if err := db.Model(&departure).Update("status", "closed").Error; err != nil {
+	if err := db.Model(&departure).Update("estado", "closed").Error; err != nil {
 		t.Fatal(err)
 	}
 	if response := send(key, payload, accounts[1]); response.Code != 200 {

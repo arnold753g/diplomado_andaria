@@ -16,10 +16,10 @@ type DashboardHandler struct{ db *gorm.DB }
 func NewDashboardHandler(db *gorm.DB) *DashboardHandler { return &DashboardHandler{db: db} }
 
 type dashboardNextPurchase struct {
-	Reference      string    `json:"reference"`
+	Reference      string    `gorm:"column:referencia" json:"reference"`
 	PackageName    string    `json:"package_name"`
 	DepartureStart time.Time `json:"departure_start"`
-	Status         string    `json:"status"`
+	Status         string    `gorm:"column:estado" json:"status"`
 }
 
 type touristDashboard struct {
@@ -78,10 +78,10 @@ func (h *DashboardHandler) tourist(w http.ResponseWriter, r *http.Request, userI
 		query *gorm.DB
 		value *int64
 	}{
-		{h.db.Model(&models.AttractionFavorite{}).Where("user_id = ?", userID), &data.Favorites},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("tourist_id = ? AND status IN ?", userID, []string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed}), &data.ActivePurchases},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("tourist_id = ? AND status = ?", userID, models.PurchaseRefundPending), &data.PendingRefunds},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("tourist_id = ? AND status = ?", userID, models.PurchaseRefunded), &data.CompletedRefunds},
+		{h.db.Model(&models.AttractionFavorite{}).Where("usuario_id = ?", userID), &data.Favorites},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("turista_id = ? AND estado IN ?", userID, []string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed}), &data.ActivePurchases},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("turista_id = ? AND estado = ?", userID, models.PurchaseRefundPending), &data.PendingRefunds},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("turista_id = ? AND estado = ?", userID, models.PurchaseRefunded), &data.CompletedRefunds},
 	}
 	for _, item := range queries {
 		if err := item.query.Count(item.value).Error; err != nil {
@@ -91,12 +91,12 @@ func (h *DashboardHandler) tourist(w http.ResponseWriter, r *http.Request, userI
 	}
 
 	var next dashboardNextPurchase
-	err := h.db.Table("tour_package_purchases purchase").
-		Select("purchase.reference, purchase.status, pkg.name AS package_name, departure.starts_at AS departure_start").
-		Joins("JOIN tour_packages pkg ON pkg.id = purchase.package_id").
-		Joins("JOIN tour_package_departures departure ON departure.id = purchase.departure_id").
-		Where("purchase.tourist_id = ? AND purchase.status IN ? AND departure.starts_at > ?", userID, []string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed}, time.Now()).
-		Order("departure.starts_at, purchase.id").Take(&next).Error
+	err := h.db.Table("compras_paquete purchase").
+		Select("purchase.referencia, purchase.estado, pkg.nombre AS package_name, departure.salida_en AS departure_start").
+		Joins("JOIN paquetes_turisticos pkg ON pkg.id = purchase.paquete_id").
+		Joins("JOIN salidas_paquete departure ON departure.id = purchase.salida_id").
+		Where("purchase.turista_id = ? AND purchase.estado IN ? AND departure.salida_en > ?", userID, []string{models.PurchasePaymentReview, models.PurchaseCorrectionRequested, models.PurchaseConfirmed}, time.Now()).
+		Order("departure.salida_en, purchase.id").Take(&next).Error
 	if err == nil {
 		data.NextPurchase = &next
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -109,7 +109,7 @@ func (h *DashboardHandler) tourist(w http.ResponseWriter, r *http.Request, userI
 func (h *DashboardHandler) agency(w http.ResponseWriter, r *http.Request, userID uint64) {
 	data := agencyDashboard{}
 	var agency models.Agency
-	if err := h.db.Select("id", "name").Where("manager_id = ?", userID).First(&agency).Error; err != nil {
+	if err := h.db.Select("id", "nombre").Where("encargado_id = ?", userID).First(&agency).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respond.JSON(w, http.StatusOK, map[string]any{"role": models.RoleAgency, "agency": data}, "Resumen cargado")
 			return
@@ -124,13 +124,13 @@ func (h *DashboardHandler) agency(w http.ResponseWriter, r *http.Request, userID
 		query *gorm.DB
 		value *int64
 	}{
-		{h.db.Model(&models.TourPackage{}).Where("agency_id = ?", agency.ID), &data.Packages},
-		{h.db.Model(&models.TourPackage{}).Where("agency_id = ? AND published = TRUE", agency.ID), &data.PublishedPackages},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("agency_id = ? AND status = ?", agency.ID, models.PurchasePaymentReview), &data.PaymentsToReview},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("agency_id = ? AND status = ?", agency.ID, models.PurchaseRefundPending), &data.PendingRefunds},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("agency_id = ? AND status = ? AND refund_due_at > ? AND refund_due_at <= ?", agency.ID, models.PurchaseRefundPending, now, dueSoon), &data.RefundsDueSoon},
-		{h.db.Model(&models.TourPackagePurchase{}).Where("agency_id = ? AND status = ? AND refund_due_at <= ?", agency.ID, models.PurchaseRefundPending, now), &data.OverdueRefunds},
-		{h.db.Model(&models.TourPackageDeparture{}).Joins("JOIN tour_packages pkg ON pkg.id = tour_package_departures.package_id").Where("pkg.agency_id = ? AND tour_package_departures.status = ?", agency.ID, "minimum_review"), &data.MinimumReviews},
+		{h.db.Model(&models.TourPackage{}).Where("agencia_id = ?", agency.ID), &data.Packages},
+		{h.db.Model(&models.TourPackage{}).Where("agencia_id = ? AND publicado = TRUE", agency.ID), &data.PublishedPackages},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("agencia_id = ? AND estado = ?", agency.ID, models.PurchasePaymentReview), &data.PaymentsToReview},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("agencia_id = ? AND estado = ?", agency.ID, models.PurchaseRefundPending), &data.PendingRefunds},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("agencia_id = ? AND estado = ? AND reembolso_vence_en > ? AND reembolso_vence_en <= ?", agency.ID, models.PurchaseRefundPending, now, dueSoon), &data.RefundsDueSoon},
+		{h.db.Model(&models.TourPackagePurchase{}).Where("agencia_id = ? AND estado = ? AND reembolso_vence_en <= ?", agency.ID, models.PurchaseRefundPending, now), &data.OverdueRefunds},
+		{h.db.Model(&models.TourPackageDeparture{}).Joins("JOIN paquetes_turisticos pkg ON pkg.id = salidas_paquete.paquete_id").Where("pkg.agencia_id = ? AND salidas_paquete.estado = ?", agency.ID, "minimum_review"), &data.MinimumReviews},
 	}
 	for _, item := range queries {
 		if err := item.query.Count(item.value).Error; err != nil {
@@ -147,10 +147,10 @@ func (h *DashboardHandler) attractionManager(w http.ResponseWriter, r *http.Requ
 		query *gorm.DB
 		value *int64
 	}{
-		{h.db.Model(&models.Attraction{}).Where("manager_id = ?", userID), &data.AssignedAttractions},
-		{h.db.Model(&models.Attraction{}).Where("manager_id = ? AND status = ? AND published = TRUE", userID, models.StatusActive), &data.PublishedAttractions},
-		{h.db.Model(&models.Attraction{}).Where("manager_id = ? AND status = ? AND published = FALSE", userID, models.StatusActive), &data.DraftAttractions},
-		{h.db.Model(&models.Attraction{}).Where("manager_id = ? AND status = ?", userID, models.StatusInactive), &data.InactiveAttractions},
+		{h.db.Model(&models.Attraction{}).Where("encargado_id = ?", userID), &data.AssignedAttractions},
+		{h.db.Model(&models.Attraction{}).Where("encargado_id = ? AND estado = ? AND publicado = TRUE", userID, models.StatusActive), &data.PublishedAttractions},
+		{h.db.Model(&models.Attraction{}).Where("encargado_id = ? AND estado = ? AND publicado = FALSE", userID, models.StatusActive), &data.DraftAttractions},
+		{h.db.Model(&models.Attraction{}).Where("encargado_id = ? AND estado = ?", userID, models.StatusInactive), &data.InactiveAttractions},
 	}
 	for _, item := range queries {
 		if err := item.query.Count(item.value).Error; err != nil {

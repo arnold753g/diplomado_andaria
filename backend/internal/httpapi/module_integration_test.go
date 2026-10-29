@@ -70,13 +70,16 @@ func TestModuleOnePermissionsAndSessions(t *testing.T) {
 		return cookie, result.Data.CSRF
 	}
 	payload := map[string]string{"email": "tourist@example.test", "password": password, "first_name": "Turista", "last_name": "Prueba"}
+	request("POST", "/api/v1/auth/login", map[string]string{"email": admin.Email, "password": "incorrect-password"}, nil, "", 401)
+	request("POST", "/api/v1/auth/login", map[string]string{}, nil, "", 422)
+	request("POST", "/api/v1/auth/login", []string{}, nil, "", 400)
 	payload["role"] = "admin"
 	request("POST", "/api/v1/auth/register", payload, nil, "", 400)
 	delete(payload, "role")
 	request("POST", "/api/v1/auth/register", payload, nil, "", 201)
 	request("POST", "/api/v1/auth/register", payload, nil, "", 409)
 	var tourist models.User
-	db.Where("email = ?", payload["email"]).First(&tourist)
+	db.Where("correo = ?", payload["email"]).First(&tourist)
 	if tourist.Role != models.RoleUser {
 		t.Fatal("registration escalated privileges")
 	}

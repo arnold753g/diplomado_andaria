@@ -13,25 +13,26 @@ const (
 )
 
 type User struct {
-	ID                  uint64     `gorm:"primaryKey" json:"id"`
-	Email               string     `gorm:"size:320;not null;uniqueIndex" json:"email"`
-	PasswordHash        string     `gorm:"size:255;not null" json:"-"`
-	FirstName           string     `gorm:"size:100;not null" json:"first_name"`
-	LastName            string     `gorm:"size:100;not null" json:"last_name"`
-	Phone               string     `gorm:"size:30;not null" json:"phone"`
-	DocumentNumber      string     `gorm:"size:40;not null" json:"document_number"`
-	Nationality         string     `gorm:"size:80;not null" json:"nationality"`
-	GoogleSubject       *string    `gorm:"size:255;uniqueIndex" json:"-"`
-	Role                string     `gorm:"size:20;not null" json:"role"`
-	Status              string     `gorm:"size:20;not null" json:"status"`
-	FailedLoginAttempts int        `gorm:"not null;default:0" json:"-"`
-	LockedUntil         *time.Time `json:"-"`
-	LastLoginAt         *time.Time `json:"last_login_at"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	ID                  uint64     `gorm:"column:id;primaryKey" json:"id"`
+	Email               string     `gorm:"column:correo;size:320;not null;uniqueIndex" json:"email"`
+	PasswordHash        string     `gorm:"column:hash_contrasena;size:255;not null" json:"-"`
+	FirstName           string     `gorm:"column:nombres;size:100;not null" json:"first_name"`
+	LastName            string     `gorm:"column:apellidos;size:100;not null" json:"last_name"`
+	Phone               string     `gorm:"column:telefono;size:30;not null" json:"phone"`
+	DocumentNumber      string     `gorm:"column:numero_documento;size:40;not null" json:"document_number"`
+	Nationality         string     `gorm:"column:nacionalidad;size:80;not null" json:"nationality"`
+	GoogleSubject       *string    `gorm:"column:identificador_google;size:255;uniqueIndex" json:"-"`
+	EmailVerifiedAt     *time.Time `gorm:"column:correo_verificado_en" json:"-"`
+	Role                string     `gorm:"column:rol;size:20;not null" json:"role"`
+	Status              string     `gorm:"column:estado;size:20;not null" json:"status"`
+	FailedLoginAttempts int        `gorm:"column:intentos_fallidos_acceso;not null;default:0" json:"-"`
+	LockedUntil         *time.Time `gorm:"column:bloqueado_hasta" json:"-"`
+	LastLoginAt         *time.Time `gorm:"column:ultimo_acceso_en" json:"last_login_at"`
+	CreatedAt           time.Time  `gorm:"column:creado_en" json:"created_at"`
+	UpdatedAt           time.Time  `gorm:"column:actualizado_en" json:"updated_at"`
 }
 
-func (User) TableName() string { return "users" }
+func (User) TableName() string { return "usuarios" }
 
 type PublicUser struct {
 	ID             uint64     `json:"id"`

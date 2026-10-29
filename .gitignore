@@ -26,6 +26,8 @@ frontend/.output/
 frontend/dist/
 backend/bin/
 *.exe
+*.apk
+*.aab
 *.out
 node_modules/
 .nuxt/
@@ -68,3 +70,18 @@ test-results/
 
 # Documentacion local del diplomado
 /documentacion para el diplomando/
+
+# Exportaciones locales y cache de Python
+/output/
+__pycache__/
+*.pyc
+
+# Informes y herramientas locales de trabajo
+/.medusa-auditor/
+/.medusa-auditor.json
+/docs/
+/assets/
+/deploy/
+/AUDIT.md
+/AUDITORIA_TECNICA_ANDARIA.md
+/AGENTS.md
